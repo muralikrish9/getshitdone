@@ -50,6 +50,13 @@ async function initializeAI() {
 
 async function extractTaskFromText(text, context) {
   try {
+    const result = await chrome.storage.local.get(['settings']);
+    const settings = result.settings || { aiEnabled: true };
+    
+    if (!settings.aiEnabled) {
+      return createFallbackTask(text, context);
+    }
+    
     if (!aiSession) {
       await initializeAI();
     }
@@ -174,7 +181,7 @@ async function createCalendarEvent(task, settings) {
       }
     };
 
-    console.log('Calendar event created:', event);
+    console.log('TODO: Google Calendar API integration - Event prepared:', event);
     
   } catch (error) {
     console.error('Failed to create calendar event:', error);
@@ -304,18 +311,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-chrome.runtime.onInstalled.addListener(async () => {
-  console.log('GetShitDone installed');
+chrome.runtime.onInstalled.addListener(async (details) => {
+  console.log('GetShitDone event:', details.reason);
   await initializeAI();
   
-  await chrome.storage.local.set({
-    tasks: [],
-    settings: {
-      calendarEnabled: false,
-      defaultDuration: 30,
-      aiEnabled: true
+  if (details.reason === 'install') {
+    await chrome.storage.local.set({
+      tasks: [],
+      settings: {
+        calendarEnabled: false,
+        defaultDuration: 30,
+        aiEnabled: true
+      }
+    });
+    console.log('Initial storage setup complete');
+  } else if (details.reason === 'update') {
+    const result = await chrome.storage.local.get(['settings']);
+    if (!result.settings) {
+      await chrome.storage.local.set({
+        settings: {
+          calendarEnabled: false,
+          defaultDuration: 30,
+          aiEnabled: true
+        }
+      });
     }
-  });
+    console.log('Extension updated, preserving existing data');
+  }
 });
 
 initializeAI();

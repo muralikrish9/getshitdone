@@ -18,9 +18,15 @@
 - Implemented Chrome Writer API for daily summary generation
 - Built popup interface with three tabs: Today, Summary, Settings
 - Created local storage layer for task metadata and work context
-- Added Google Calendar integration stub (ready for connection)
+- Added Google Calendar integration stub (marked as future feature)
 - Set up documentation landing page with installation instructions
 - Generated extension icons (16px, 48px, 128px)
+
+### October 21, 2025 - Critical Bug Fixes (Architect Review)
+- **Fixed data loss bug**: onInstalled now checks `details.reason` to prevent wiping tasks on extension updates
+- **Added AI toggle support**: extractTaskFromText now respects the `aiEnabled` setting
+- **Clarified Calendar integration**: Updated UI to show Google Calendar as "Coming Soon" instead of implying it's functional
+- All changes preserve user data and improve transparency
 
 ## User Preferences
 

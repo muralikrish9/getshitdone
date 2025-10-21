@@ -181,14 +181,13 @@ async function loadSettings() {
     aiEnabled: true
   };
 
-  document.getElementById('calendarEnabled').checked = settings.calendarEnabled;
   document.getElementById('defaultDuration').value = settings.defaultDuration;
   document.getElementById('aiEnabled').checked = settings.aiEnabled;
 }
 
 async function saveSettings() {
   const settings = {
-    calendarEnabled: document.getElementById('calendarEnabled').checked,
+    calendarEnabled: false,
     defaultDuration: parseInt(document.getElementById('defaultDuration').value),
     aiEnabled: document.getElementById('aiEnabled').checked
   };
@@ -196,14 +195,8 @@ async function saveSettings() {
   await chrome.storage.local.set({ settings });
 }
 
-document.getElementById('calendarEnabled').addEventListener('change', saveSettings);
 document.getElementById('defaultDuration').addEventListener('change', saveSettings);
 document.getElementById('aiEnabled').addEventListener('change', saveSettings);
-
-document.getElementById('connectCalendarBtn').addEventListener('click', () => {
-  document.getElementById('calendarStatus').textContent = 
-    'Calendar integration will be available in the next update. Currently using local storage.';
-});
 
 async function checkAIStatus() {
   const response = await chrome.runtime.sendMessage({ action: 'checkAI' });
