@@ -1,6 +1,11 @@
 const tabs = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
 
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingStartTime = null;
+let recordingInterval = null;
+
 tabs.forEach(tab => {
   tab.addEventListener('click', () => {
     const targetTab = tab.dataset.tab;
@@ -44,16 +49,32 @@ async function loadTasks() {
     return;
   }
 
-  taskList.innerHTML = todayTasks.reverse().map(task => `
-    <div class="task-item">
-      <div class="task-title">${escapeHtml(task.task)}</div>
-      <div class="task-meta">
-        <span>📁 ${escapeHtml(task.project || 'General')}</span>
-        <span>⏱️ ${task.estimatedDuration || 30}min</span>
-        <span>🎯 ${task.priority || 'medium'}</span>
+  taskList.innerHTML = todayTasks.reverse().map(task => {
+    let mediaContent = '';
+    
+    if (task.imageDataUrl) {
+      mediaContent = `<img src="${task.imageDataUrl}" class="task-image-thumbnail" alt="Task screenshot">`;
+    }
+    
+    if (task.transcription) {
+      mediaContent += `
+        <div class="task-audio-indicator">🎤 Voice memo</div>
+        <div class="task-transcription">${escapeHtml(task.transcription)}</div>
+      `;
+    }
+    
+    return `
+      <div class="task-item">
+        <div class="task-title">${escapeHtml(task.task)}</div>
+        <div class="task-meta">
+          <span>📁 ${escapeHtml(task.project || 'General')}</span>
+          <span>⏱️ ${task.estimatedDuration || 30}min</span>
+          <span>🎯 ${task.priority || 'medium'}</span>
+        </div>
+        ${mediaContent}
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 async function loadProjectBreakdown() {
@@ -199,24 +220,52 @@ document.getElementById('defaultDuration').addEventListener('change', saveSettin
 document.getElementById('aiEnabled').addEventListener('change', saveSettings);
 
 async function checkAIStatus() {
-  const response = await chrome.runtime.sendMessage({ action: 'checkAI' });
-  
-  const statusDiv = document.getElementById('aiStatus');
-  
-  if (response.available) {
-    statusDiv.className = 'ai-status available';
-    statusDiv.innerHTML = `
-      <p><strong>✓ Chrome AI Available</strong></p>
-      <p>Prompt API: ${response.hasPrompt ? '✓' : '✗'}</p>
-      <p>Summarizer API: ${response.hasSummarizer ? '✓' : '✗'}</p>
-      <p>Writer API: ${response.hasWriter ? '✓' : '✗'}</p>
-    `;
-  } else {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'checkAI' });
+    
+    const statusDiv = document.getElementById('aiStatus');
+    
+    if (response.available) {
+      statusDiv.className = 'ai-status available';
+      statusDiv.innerHTML = `
+        <p><strong>✓ Chrome AI Available</strong></p>
+        <p>Prompt API: ${response.hasPrompt ? '✓' : '✗'}</p>
+        <p>Summarizer API: ${response.hasSummarizer ? '✓' : '✗'}</p>
+        <p>Writer API: ${response.hasWriter ? '✓' : '✗'}</p>
+        <p>Multimodal AI: ${response.hasMultimodal ? '✓' : '✗'}</p>
+      `;
+    } else {
+      statusDiv.className = 'ai-status unavailable';
+      
+      if (response.error) {
+        statusDiv.innerHTML = `
+          <p><strong>✗ Chrome AI Unavailable</strong></p>
+          <p>Error: ${response.error}</p>
+          <p><strong>To fix:</strong></p>
+          <ol>
+            <li>Use Chrome Canary or Chrome Dev</li>
+            <li>Enable AI flags in chrome://flags</li>
+            <li>Join Chrome Built-in AI Early Preview Program</li>
+          </ol>
+        `;
+      } else {
+        statusDiv.innerHTML = `
+          <p><strong>✗ Chrome AI Unavailable</strong></p>
+          <p>Prompt API: ${response.hasPrompt ? '✓' : '✗'}</p>
+          <p>Summarizer API: ${response.hasSummarizer ? '✓' : '✗'}</p>
+          <p>Writer API: ${response.hasWriter ? '✓' : '✗'}</p>
+          <p>Multimodal AI: ${response.hasMultimodal ? '✓' : '✗'}</p>
+          <p><strong>To enable:</strong> Enable AI flags in chrome://flags</p>
+        `;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to check AI status:', error);
+    const statusDiv = document.getElementById('aiStatus');
     statusDiv.className = 'ai-status unavailable';
     statusDiv.innerHTML = `
-      <p><strong>✗ Chrome AI Not Available</strong></p>
-      <p>Make sure you're using Chrome Canary or Dev with AI features enabled.</p>
-      <p><a href="https://developer.chrome.com/docs/ai/join-epp" target="_blank">Join Early Preview Program</a></p>
+      <p><strong>✗ AI Status Check Failed</strong></p>
+      <p>Error: ${error.message}</p>
     `;
   }
 }
@@ -242,5 +291,129 @@ function escapeHtml(text) {
   div.textContent = text;
   return div.innerHTML;
 }
+
+// Screenshot button handler
+document.getElementById('screenshotBtn').addEventListener('click', async () => {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    // Send message to content script to start screenshot capture
+    chrome.tabs.sendMessage(tab.id, { action: 'startScreenshotCapture' }, async (response) => {
+      if (chrome.runtime.lastError) {
+        // Content script not injected yet, inject it
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        });
+        
+        // Try again
+        chrome.tabs.sendMessage(tab.id, { action: 'startScreenshotCapture' }, handleScreenshotResponse);
+      } else {
+        handleScreenshotResponse(response);
+      }
+    });
+    
+    window.close(); // Close popup to allow screenshot selection
+  } catch (error) {
+    console.error('Screenshot initiation failed:', error);
+    alert('Failed to start screenshot capture. Please try again.');
+  }
+});
+
+async function handleScreenshotResponse(response) {
+  if (response && response.success) {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const context = {
+      title: tab.title,
+      url: tab.url,
+      timestamp: new Date().toISOString()
+    };
+
+    chrome.runtime.sendMessage({
+      action: 'processScreenshot',
+      imageData: response.imageData,
+      context: context
+    }, (processResponse) => {
+      if (processResponse && processResponse.success) {
+        console.log('Screenshot tasks created:', processResponse.tasks.length);
+      }
+    });
+  }
+}
+
+// Audio recording handlers
+document.getElementById('audioBtn').addEventListener('click', async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    
+    mediaRecorder = new MediaRecorder(stream);
+    
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
+    };
+    
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      
+      // Convert blob to base64 data URL
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const audioData = reader.result;
+        
+        const context = {
+          source: 'Voice memo',
+          timestamp: new Date().toISOString()
+        };
+        
+        const response = await chrome.runtime.sendMessage({
+          action: 'processAudio',
+          audioData: audioData,
+          context: context
+        });
+        
+        if (response && response.success) {
+          await loadTasks();
+          alert(`Voice memo captured! ${response.tasks.length} task(s) created.`);
+        }
+      };
+      reader.readAsDataURL(audioBlob);
+      
+      // Stop all tracks
+      stream.getTracks().forEach(track => track.stop());
+      clearInterval(recordingInterval);
+    };
+    
+    mediaRecorder.start();
+    recordingStartTime = Date.now();
+    
+    // Show recording UI
+    document.getElementById('audioRecorder').style.display = 'block';
+    document.getElementById('audioBtn').style.display = 'none';
+    
+    // Update recording time
+    recordingInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+      const minutes = Math.floor(elapsed / 60);
+      const seconds = elapsed % 60;
+      document.getElementById('recordingTime').textContent = 
+        `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }, 1000);
+    
+  } catch (error) {
+    console.error('Audio recording failed:', error);
+    alert('Failed to access microphone. Please grant permission and try again.');
+  }
+});
+
+document.getElementById('stopRecordingBtn').addEventListener('click', () => {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    document.getElementById('audioRecorder').style.display = 'none';
+    document.getElementById('audioBtn').style.display = 'inline-block';
+  }
+});
 
 loadTasks();
