@@ -7,10 +7,15 @@
     "storage",
     "activeTab",
     "scripting",
-    "aiOriginTrial"
+    "aiOriginTrial",
+    "contextMenus",
+    "tabs",
+    "tabCapture",
+    "identity"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "https://www.googleapis.com/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -18,8 +23,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],

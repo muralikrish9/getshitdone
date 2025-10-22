@@ -45,6 +45,21 @@
           <button id="quickCaptureBtn" class="btn-primary">Capture Task</button>
         </div>
       </section>
+
+      <section class="section">
+        <h2>Multimodal Capture</h2>
+        <div class="multimodal-buttons">
+          <button id="screenshotBtn" class="btn-secondary">📸 Screenshot</button>
+          <button id="audioBtn" class="btn-secondary">🎤 Voice Memo</button>
+        </div>
+        <div id="audioRecorder" class="audio-recorder" style="display: none;">
+          <div class="recording-status">
+            <span id="recordingIndicator" class="recording-indicator"></span>
+            <span id="recordingTime">0:00</span>
+          </div>
+          <button id="stopRecordingBtn" class="btn-danger">Stop Recording</button>
+        </div>
+      </section>
     </div>
 
     <div class="tab-content" id="summary">
@@ -72,12 +87,35 @@
 
     <div class="tab-content" id="settings">
       <section class="section">
-        <h2>Google Calendar (Coming Soon)</h2>
-        <div class="setting-item">
-          <label for="calendarEnabled" style="opacity: 0.6; cursor: not-allowed;">
-            <input type="checkbox" id="calendarEnabled" disabled>
-            Auto-create calendar events for tasks
-          </label>
+        <h2>Google Integration</h2>
+        <div id="googleAuthSection">
+          <div id="googleAuthStatus" class="auth-status">
+            <p><strong>✗ Not Connected to Google</strong></p>
+            <p>Connect to sync tasks with Calendar & Tasks.</p>
+          </div>
+          <button id="connectGoogleBtn" class="btn-primary">Connect Google Account</button>
+          <button id="signOutBtn" class="btn-secondary" style="display: none;">Sign Out</button>
+        </div>
+        
+        <div id="googleSettings" style="display: none;">
+          <div class="setting-item">
+            <label for="calendarEnabled">
+              <input type="checkbox" id="calendarEnabled">
+              Auto-create calendar events for tasks
+            </label>
+          </div>
+          <div class="setting-item">
+            <label for="calendarSelect">Calendar:</label>
+            <select id="calendarSelect" disabled>
+              <option value="">Loading calendars...</option>
+            </select>
+          </div>
+          <div class="setting-item">
+            <label for="taskListSelect">Task List:</label>
+            <select id="taskListSelect" disabled>
+              <option value="">Loading task lists...</option>
+            </select>
+          </div>
         </div>
         <div class="setting-item">
           <label for="defaultDuration">Default task duration (minutes):</label>

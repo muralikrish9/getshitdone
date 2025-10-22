@@ -1,3 +1,8 @@
+// Import Google integration modules
+import { googleAuth } from './google-auth.js';
+import { googleCalendar } from './google-calendar.js';
+import { googleTasks } from './google-tasks.js';
+
 let aiSession = null;
 let summarizerSession = null;
 let writerSession = null;
@@ -31,7 +36,7 @@ async function cropImage(dataUrl, region) {
 async function initializeAI() {
   try {
     console.log('[AI Init] Starting AI initialization...');
-    
+
     // Check if AI APIs are available
     if (typeof ai === 'undefined') {
       console.log('[AI Init] AI APIs not available - make sure Chrome AI flags are enabled');
@@ -44,7 +49,7 @@ async function initializeAI() {
       try {
         const capabilities = await ai.languageModel.capabilities();
         console.log('[AI Init] LanguageModel capabilities:', capabilities);
-        
+
         if (capabilities.available === 'readily') {
           aiSession = await ai.languageModel.create({
             temperature: 0.7,
@@ -67,7 +72,7 @@ async function initializeAI() {
       try {
         const summarizerCapabilities = await ai.summarizer.capabilities();
         console.log('[AI Init] Summarizer capabilities:', summarizerCapabilities);
-        
+
         if (summarizerCapabilities.available === 'readily') {
           summarizerSession = await ai.summarizer.create({
             type: 'key-points',
@@ -91,7 +96,7 @@ async function initializeAI() {
       try {
         const writerCapabilities = await ai.writer.capabilities();
         console.log('[AI Init] Writer capabilities:', writerCapabilities);
-        
+
         if (writerCapabilities.available === 'readily') {
           writerSession = await ai.writer.create({
             tone: 'formal',
@@ -244,7 +249,9 @@ async function saveTask(taskData) {
     id: taskId,
     ...taskData,
     createdAt: new Date().toISOString(),
-    completed: false
+    status: 'pending',
+    googleCalendarId: null,
+    googleTaskId: null
   };
 
   const result = await chrome.storage.local.get(['tasks', 'settings']);
@@ -254,11 +261,82 @@ async function saveTask(taskData) {
   tasks.push(task);
   await chrome.storage.local.set({ tasks });
 
-  if (settings.calendarEnabled && settings.calendarToken) {
-    await createCalendarEvent(task, settings);
+  // Sync to Google services if authenticated
+  try {
+    const isAuthenticated = await googleAuth.isUserAuthenticated();
+    if (isAuthenticated) {
+      console.log('[Save Task] Syncing to Google services...');
+      await syncTaskToGoogle(task);
+    } else {
+      console.log('[Save Task] Not authenticated with Google, skipping sync');
+    }
+  } catch (error) {
+    console.error('[Save Task] Google sync failed:', error);
   }
 
   return task;
+}
+
+async function syncTaskToGoogle(task) {
+  try {
+    console.log('[Google Sync] Starting sync for task:', task.task);
+    
+    const settings = await chrome.storage.local.get(['settings']);
+    const { selectedCalendarId, selectedTaskListId, calendarEnabled } = settings.settings || {};
+    
+    let calendarEvent = null;
+    let googleTask = null;
+    
+    // Create Calendar event if enabled
+    if (calendarEnabled && selectedCalendarId) {
+      try {
+        console.log('[Google Sync] Creating Calendar event...');
+        calendarEvent = await googleCalendar.createEvent(task, selectedCalendarId);
+        console.log('[Google Sync] ✓ Calendar event created:', calendarEvent.id);
+      } catch (error) {
+        console.error('[Google Sync] ✗ Calendar event creation failed:', error);
+      }
+    }
+    
+    // Create Google Task
+    if (selectedTaskListId) {
+      try {
+        console.log('[Google Sync] Creating Google Task...');
+        googleTask = await googleTasks.createTask(task, selectedTaskListId);
+        console.log('[Google Sync] ✓ Google Task created:', googleTask.id);
+      } catch (error) {
+        console.error('[Google Sync] ✗ Google Task creation failed:', error);
+      }
+    } else {
+      // Use default task list
+      try {
+        console.log('[Google Sync] Using default task list...');
+        googleTask = await googleTasks.createTask(task, '@default');
+        console.log('[Google Sync] ✓ Google Task created in default list:', googleTask.id);
+      } catch (error) {
+        console.error('[Google Sync] ✗ Google Task creation failed:', error);
+      }
+    }
+    
+    // Update local task with Google IDs
+    if (calendarEvent || googleTask) {
+      const result = await chrome.storage.local.get(['tasks']);
+      const tasks = result.tasks || [];
+      const taskIndex = tasks.findIndex(t => t.id === task.id);
+      
+      if (taskIndex !== -1) {
+        tasks[taskIndex].googleCalendarId = calendarEvent?.id || null;
+        tasks[taskIndex].googleTaskId = googleTask?.id || null;
+        await chrome.storage.local.set({ tasks });
+        console.log('[Google Sync] ✓ Local task updated with Google IDs');
+      }
+    }
+    
+    console.log('[Google Sync] ✓ Sync completed');
+  } catch (error) {
+    console.error('[Google Sync] ✗ Sync failed:', error);
+    throw error;
+  }
 }
 
 async function createCalendarEvent(task, settings) {
@@ -660,6 +738,134 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const task = await saveTask(extracted);
         sendResponse({ success: true, task });
       } catch (error) {
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
+  // Google Authentication handlers
+  if (message.action === 'authenticateGoogle') {
+    (async () => {
+      try {
+        const result = await googleAuth.authenticate();
+        sendResponse(result);
+      } catch (error) {
+        console.error('[Background] Google authentication failed:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
+  if (message.action === 'getGoogleAuthStatus') {
+    (async () => {
+      try {
+        const isAuthenticated = await googleAuth.isUserAuthenticated();
+        const userInfo = await googleAuth.getUserInfo();
+        sendResponse({
+          isAuthenticated,
+          userInfo: isAuthenticated ? userInfo : null
+        });
+      } catch (error) {
+        console.error('[Background] Google auth status check failed:', error);
+        sendResponse({ isAuthenticated: false, userInfo: null });
+      }
+    })();
+    return true;
+  }
+
+  if (message.action === 'signOutGoogle') {
+    (async () => {
+      try {
+        await googleAuth.signOut();
+        sendResponse({ success: true });
+      } catch (error) {
+        console.error('[Background] Google sign out failed:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
+  // Google Calendar handlers
+  if (message.action === 'getGoogleCalendars') {
+    (async () => {
+      try {
+        const calendars = await googleCalendar.listCalendars();
+        sendResponse({ success: true, calendars });
+      } catch (error) {
+        console.error('[Background] Failed to get calendars:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
+  // Google Tasks handlers
+  if (message.action === 'getGoogleTaskLists') {
+    (async () => {
+      try {
+        const taskLists = await googleTasks.listTaskLists();
+        sendResponse({ success: true, taskLists });
+      } catch (error) {
+        console.error('[Background] Failed to get task lists:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
+  // Task status update handler
+  if (message.action === 'updateTaskStatus') {
+    (async () => {
+      try {
+        const { taskId, newStatus } = message.data;
+        
+        // Update local task
+        const result = await chrome.storage.local.get(['tasks']);
+        const tasks = result.tasks || [];
+        const taskIndex = tasks.findIndex(t => t.id === taskId);
+        
+        if (taskIndex !== -1) {
+          tasks[taskIndex].status = newStatus;
+          await chrome.storage.local.set({ tasks });
+          
+          // Update Google services if authenticated
+          const isAuthenticated = await googleAuth.isUserAuthenticated();
+          if (isAuthenticated) {
+            const task = tasks[taskIndex];
+            const settings = await chrome.storage.local.get(['settings']);
+            const { selectedCalendarId, selectedTaskListId, calendarEnabled } = settings.settings || {};
+            
+            // Update Calendar event
+            if (calendarEnabled && selectedCalendarId && task.googleCalendarId) {
+              try {
+                await googleCalendar.updateEventStatus(task.googleCalendarId, newStatus, selectedCalendarId);
+                console.log('[Background] ✓ Calendar event updated');
+              } catch (error) {
+                console.error('[Background] ✗ Calendar update failed:', error);
+              }
+            }
+            
+            // Update Google Task
+            if (task.googleTaskId) {
+              try {
+                const taskListId = selectedTaskListId || '@default';
+                await googleTasks.updateTaskStatus(task.googleTaskId, newStatus, taskListId);
+                console.log('[Background] ✓ Google Task updated');
+              } catch (error) {
+                console.error('[Background] ✗ Google Task update failed:', error);
+              }
+            }
+          }
+          
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: 'Task not found' });
+        }
+      } catch (error) {
+        console.error('[Background] Task status update failed:', error);
         sendResponse({ success: false, error: error.message });
       }
     })();

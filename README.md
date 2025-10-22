@@ -8,6 +8,7 @@ GetShitDone is a Chrome extension that revolutionizes knowledge work tracking by
 
 ## Features
 
+### Core Capabilities
 - **Smart Highlight Capture**: Highlight text anywhere and instantly create tasks
 - **AI Task Extraction**: Uses Chrome's Prompt API to infer tasks, priorities, deadlines, and durations
 - **Automatic Summarization**: Chrome's Summarizer API condenses content into clear descriptions
@@ -16,17 +17,31 @@ GetShitDone is a Chrome extension that revolutionizes knowledge work tracking by
 - **Google Calendar Sync**: Create time-blocked calendar events (hybrid AI approach)
 - **Local Storage**: All data stays on your device using Chrome Storage API
 
+### Multimodal AI Features ✨ NEW
+- **📸 Screenshot Task Capture**: Select any region of your screen to extract tasks from visual content
+  - Extract tasks from PDFs, dashboards, Slack/Teams messages, design mockups
+  - AI-powered OCR using Prompt API's image input
+  - Visual thumbnails displayed with tasks
+- **🎤 Voice Task Capture**: Record voice memos and automatically extract action items
+  - AI transcription and task extraction using Prompt API's audio input
+  - Perfect for meeting notes, quick thoughts, and phone call summaries
+  - Full transcription stored with each task
+
 ## Technology Stack
 
 ### Chrome Built-in AI APIs
 - **Prompt API**: Task reasoning, deadline inference, priority detection
+- **Prompt API (Multimodal)**: Image and audio input for visual OCR and voice transcription
 - **Summarizer API**: Content condensation and key point extraction
 - **Writer API**: Professional daily summary generation
 
 ### Chrome Extension APIs
 - Manifest V3 with service workers
-- Content scripts for highlight detection
+- Content scripts for highlight detection and screenshot UI
 - Chrome Storage for local data persistence
+- Tab capture API for screenshot functionality
+- MediaRecorder API for audio capture
+- Context menus for quick access
 - Google Calendar API integration
 
 ## Installation
@@ -58,6 +73,30 @@ GetShitDone is a Chrome extension that revolutionizes knowledge work tracking by
 3. Click the "Capture Task" button that appears
 4. AI automatically extracts task details and saves them
 5. View captured tasks by clicking the extension icon
+
+### Screenshot Task Capture (Multimodal) 📸
+
+**Method 1: Context Menu**
+1. Right-click anywhere on a webpage
+2. Select "📸 Capture Screenshot as Task"
+3. Click and drag to select the region containing task information
+4. AI extracts tasks from the visual content
+
+**Method 2: Extension Popup**
+1. Click the extension icon
+2. Click the "📸 Screenshot" button
+3. Select the region on your current tab
+4. Tasks are automatically extracted and saved
+
+### Voice Task Capture (Multimodal) 🎤
+
+1. Click the extension icon
+2. Navigate to the "Today" tab
+3. Click the "🎤 Voice Memo" button
+4. Grant microphone permission if prompted
+5. Speak your tasks, action items, or meeting notes
+6. Click "Stop Recording" when done
+7. AI transcribes and extracts tasks automatically
 
 ### Quick Capture
 
@@ -98,9 +137,9 @@ GetShitDone is a Chrome extension that revolutionizes knowledge work tracking by
 
 This extension is designed for:
 
-- **Most Helpful - Chrome Extension** ($14,000): Automates the entire knowledge work tracking workflow
+- **Most Helpful - Chrome Extension** ($14,000): Automates the entire knowledge work tracking workflow from any input source
+- **Best Multimodal AI Application** ($9,000): Full image and audio input with Chrome's Prompt API for visual OCR and voice transcription
 - **Best Hybrid AI Application** ($9,000): Combines local Chrome AI with Google Calendar cloud API
-- **Best Multimodal AI Application** ($9,000): Architecture ready for image/audio input expansion
 
 ## Development
 
@@ -113,19 +152,22 @@ This extension is designed for:
 
 ## Privacy & Security
 
-- All AI processing happens locally using Chrome's built-in models
-- No data is sent to external servers (except Google Calendar with user permission)
-- Tasks and summaries are stored locally using Chrome Storage API
-- No API keys required for AI features
+- **100% Local AI Processing**: All text, image, and audio processing happens on-device using Chrome's built-in models
+- **Zero External API Calls**: No data sent to external servers (except Google Calendar with explicit user permission)
+- **On-Device Multimodal**: Screenshot OCR and voice transcription run entirely locally
+- **Local Storage Only**: Tasks, images, and audio transcriptions stored using Chrome Storage API
+- **No API Keys Required**: No third-party AI services or API keys needed
 
 ## Future Enhancements
 
-- Snapshot capture with OCR for visual content
-- Multimodal AI using Prompt API's image/audio input
-- Task manager integrations (Notion, Linear, Asana)
+- ✅ ~~Screenshot capture with OCR~~ **IMPLEMENTED**
+- ✅ ~~Multimodal AI using Prompt API's image/audio input~~ **IMPLEMENTED**
+- Task manager integrations (Notion, Linear, Asana, Todoist)
 - Weekly aggregation with focus distribution analytics
-- Chrome Proofreader API for summary refinement
-- Intelligent work recommendations
+- Chrome Proofreader, Rewriter, and Translator APIs
+- Firebase hybrid AI for advanced task relationship analysis
+- Intelligent work recommendations and priority suggestions
+- Cross-device sync and collaboration features
 
 ## Resources
 

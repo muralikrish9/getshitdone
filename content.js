@@ -1,4 +1,160 @@
 let highlightButton = null;
+let screenshotCapture = null;
+
+// Screenshot capture functionality
+class ScreenshotCapture {
+  constructor() {
+    this.overlay = null;
+    this.selectionBox = null;
+    this.startX = 0;
+    this.startY = 0;
+    this.isSelecting = false;
+  }
+
+  async captureScreen() {
+    return new Promise((resolve, reject) => {
+      this.createOverlay();
+      this.resolveCapture = resolve;
+      this.rejectCapture = reject;
+    });
+  }
+
+  createOverlay() {
+    this.overlay = document.createElement('div');
+    this.overlay.id = 'getshitdone-screenshot-overlay';
+    this.overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 2147483647;
+      cursor: crosshair;
+    `;
+
+    const instructions = document.createElement('div');
+    instructions.id = 'getshitdone-screenshot-instructions';
+    instructions.style.cssText = `
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 2147483648;
+    `;
+    instructions.innerHTML = `
+      <strong>📸 Screenshot Capture</strong><br>
+      Click and drag to select region • Press ESC to cancel
+    `;
+
+    this.selectionBox = document.createElement('div');
+    this.selectionBox.style.cssText = `
+      position: fixed;
+      border: 2px solid #667eea;
+      background: rgba(102, 126, 234, 0.1);
+      display: none;
+      z-index: 2147483648;
+      pointer-events: none;
+    `;
+
+    document.body.appendChild(this.overlay);
+    document.body.appendChild(instructions);
+    document.body.appendChild(this.selectionBox);
+
+    this.overlay.addEventListener('mousedown', this.handleMouseDown.bind(this));
+    this.overlay.addEventListener('mousemove', this.handleMouseMove.bind(this));
+    this.overlay.addEventListener('mouseup', this.handleMouseUp.bind(this));
+    this.keyDownHandler = this.handleKeyDown.bind(this);
+    document.addEventListener('keydown', this.keyDownHandler);
+  }
+
+  handleMouseDown(e) {
+    this.isSelecting = true;
+    this.startX = e.clientX;
+    this.startY = e.clientY;
+    
+    this.selectionBox.style.left = `${this.startX}px`;
+    this.selectionBox.style.top = `${this.startY}px`;
+    this.selectionBox.style.width = '0px';
+    this.selectionBox.style.height = '0px';
+    this.selectionBox.style.display = 'block';
+  }
+
+  handleMouseMove(e) {
+    if (!this.isSelecting) return;
+
+    const currentX = e.clientX;
+    const currentY = e.clientY;
+    const width = Math.abs(currentX - this.startX);
+    const height = Math.abs(currentY - this.startY);
+    const left = Math.min(currentX, this.startX);
+    const top = Math.min(currentY, this.startY);
+
+    this.selectionBox.style.left = `${left}px`;
+    this.selectionBox.style.top = `${top}px`;
+    this.selectionBox.style.width = `${width}px`;
+    this.selectionBox.style.height = `${height}px`;
+  }
+
+  async handleMouseUp(e) {
+    if (!this.isSelecting) return;
+    
+    this.isSelecting = false;
+    const endX = e.clientX;
+    const endY = e.clientY;
+    const width = Math.abs(endX - this.startX);
+    const height = Math.abs(endY - this.startY);
+
+    if (width < 50 || height < 50) {
+      this.cleanup();
+      this.rejectCapture(new Error('Selection too small'));
+      return;
+    }
+
+    const region = {
+      x: Math.min(this.startX, endX),
+      y: Math.min(this.startY, endY),
+      width: width,
+      height: height
+    };
+
+    this.cleanup();
+    
+    chrome.runtime.sendMessage({
+      action: 'captureScreenshot',
+      region: region
+    }, (response) => {
+      if (response && response.success) {
+        this.resolveCapture(response.imageData);
+      } else {
+        this.rejectCapture(new Error('Screenshot capture failed'));
+      }
+    });
+  }
+
+  handleKeyDown(e) {
+    if (e.key === 'Escape') {
+      this.cleanup();
+      this.rejectCapture(new Error('Cancelled by user'));
+    }
+  }
+
+  cleanup() {
+    if (this.overlay) this.overlay.remove();
+    if (this.selectionBox) this.selectionBox.remove();
+    const instructions = document.getElementById('getshitdone-screenshot-instructions');
+    if (instructions) instructions.remove();
+    if (this.keyDownHandler) {
+      document.removeEventListener('keydown', this.keyDownHandler);
+    }
+  }
+}
 
 function createHighlightButton() {
   const button = document.createElement('div');
@@ -170,3 +326,20 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
+
+// Listen for screenshot capture requests
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'startScreenshotCapture') {
+    (async () => {
+      try {
+        screenshotCapture = new ScreenshotCapture();
+        const imageData = await screenshotCapture.captureScreen();
+        sendResponse({ success: true, imageData });
+      } catch (error) {
+        console.error('Screenshot capture failed:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+});
