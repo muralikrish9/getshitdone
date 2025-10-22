@@ -1,8 +1,6 @@
 // Google Calendar API Client
 // Handles Calendar API operations for creating, updating, and managing events
 
-import { googleAuth } from './google-auth.js';
-
 class GoogleCalendar {
     constructor() {
         this.baseUrl = 'https://www.googleapis.com/calendar/v3';
@@ -279,5 +277,5 @@ class GoogleCalendar {
     }
 }
 
-// Export singleton instance
-export const googleCalendar = new GoogleCalendar();
+// Create global instance
+const googleCalendar = new GoogleCalendar();

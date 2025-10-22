@@ -363,5 +363,5 @@ class GoogleAuth {
     }
 }
 
-// Export singleton instance
-export const googleAuth = new GoogleAuth();
+// Create global instance
+const googleAuth = new GoogleAuth();

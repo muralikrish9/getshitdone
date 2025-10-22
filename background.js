@@ -1,7 +1,280 @@
-// Import Google integration modules
-import { googleAuth } from './google-auth.js';
-import { googleCalendar } from './google-calendar.js';
-import { googleTasks } from './google-tasks.js';
+// Google integration modules will be loaded as regular scripts
+
+// Google Authentication Class
+class GoogleAuth {
+    constructor() {
+        this.isAuthenticated = false;
+        this.accessToken = null;
+        this.userInfo = null;
+        this.clientId = 'YOUR_GOOGLE_CLIENT_ID';
+        this.redirectUri = 'YOUR_GOOGLE_REDIRECT_URI';
+        this.clientSecret = 'YOUR_GOOGLE_CLIENT_SECRET';
+        this.scopes = [
+            'https://www.googleapis.com/auth/calendar',
+            'https://www.googleapis.com/auth/tasks',
+            'https://www.googleapis.com/auth/userinfo.email',
+            'https://www.googleapis.com/auth/userinfo.profile'
+        ];
+    }
+
+    async authenticate() {
+        try {
+            console.log('[GoogleAuth] Starting OAuth 2.0 authentication...');
+            const authUrl = this.buildAuthUrl();
+            const authCode = await this.getAuthCode(authUrl);
+            if (!authCode) {
+                throw new Error('No authorization code received');
+            }
+            const tokenData = await this.exchangeCodeForToken(authCode);
+            if (!tokenData.access_token) {
+                throw new Error('No access token received from Google');
+            }
+            this.accessToken = tokenData.access_token;
+            this.isAuthenticated = true;
+            await chrome.storage.local.set({ googleAuth: { isAuthenticated: true, accessToken: this.accessToken } });
+            console.log('[GoogleAuth] ✓ Authentication successful');
+            return { success: true, token: this.accessToken };
+        } catch (error) {
+            console.error('[GoogleAuth] ✗ Authentication failed:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    buildAuthUrl() {
+        const params = new URLSearchParams({
+            client_id: this.clientId,
+            redirect_uri: this.redirectUri,
+            response_type: 'code',
+            scope: this.scopes.join(' '),
+            access_type: 'offline',
+            prompt: 'consent'
+        });
+        return `https://accounts.google.com/o/oauth2/auth?${params.toString()}`;
+    }
+
+    async getAuthCode(authUrl) {
+        return new Promise((resolve) => {
+            chrome.identity.launchWebAuthFlow({
+                url: authUrl,
+                interactive: true
+            }, (responseUrl) => {
+                if (chrome.runtime.lastError) {
+                    console.error('[GoogleAuth] Auth flow error:', chrome.runtime.lastError);
+                    resolve(null);
+                    return;
+                }
+                const url = new URL(responseUrl);
+                const code = url.searchParams.get('code');
+                resolve(code);
+            });
+        });
+    }
+
+    async exchangeCodeForToken(code) {
+        const response = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                client_id: this.clientId,
+                client_secret: this.clientSecret,
+                code: code,
+                grant_type: 'authorization_code',
+                redirect_uri: this.redirectUri
+            })
+        });
+        return response.json();
+    }
+
+    async isUserAuthenticated() {
+        try {
+            const result = await chrome.storage.local.get(['googleAuth']);
+            return result.googleAuth?.isAuthenticated || false;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    async getUserInfo() {
+        try {
+            const result = await chrome.storage.local.get(['googleAuth']);
+            return result.googleAuth?.userInfo || null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    async signOut() {
+        this.isAuthenticated = false;
+        this.accessToken = null;
+        this.userInfo = null;
+        await chrome.storage.local.remove(['googleAuth']);
+    }
+}
+
+// Google Calendar Class
+class GoogleCalendar {
+    constructor() {
+        this.baseUrl = 'https://www.googleapis.com/calendar/v3';
+    }
+
+    async getAccessToken() {
+        const result = await chrome.storage.local.get(['googleAuth']);
+        return result.googleAuth?.accessToken;
+    }
+
+    async makeRequest(endpoint, options = {}) {
+        const token = await this.getAccessToken();
+        if (!token) throw new Error('No access token available');
+
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            ...options
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`Calendar API error: ${response.status} - ${errorData.error?.message || response.statusText}`);
+        }
+        return response.json();
+    }
+
+    async listCalendars() {
+        const response = await this.makeRequest('/users/me/calendarList');
+        return response.items.map(cal => ({
+            id: cal.id,
+            summary: cal.summary,
+            primary: cal.primary
+        }));
+    }
+
+    async createEvent(task, calendarId) {
+        const startTime = new Date();
+        const endTime = new Date(startTime.getTime() + (task.estimatedDuration || 30) * 60000);
+        
+        const event = {
+            summary: task.task,
+            description: `Captured from: ${task.context?.url || 'Unknown'}\nPriority: ${task.priority || 'medium'}`,
+            start: { dateTime: startTime.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+            end: { dateTime: endTime.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }
+        };
+
+        const response = await this.makeRequest(`/calendars/${calendarId}/events`, {
+            method: 'POST',
+            body: JSON.stringify(event)
+        });
+        return { id: response.id, summary: response.summary };
+    }
+
+    async updateEventStatus(eventId, status, calendarId) {
+        const currentEvent = await this.makeRequest(`/calendars/${calendarId}/events/${eventId}`);
+        let updates = {};
+        
+        switch (status) {
+            case 'in-progress':
+                updates.summary = `🔄 ${currentEvent.summary}`;
+                break;
+            case 'completed':
+                updates.summary = `✅ ${currentEvent.summary}`;
+                break;
+            default:
+                updates.summary = currentEvent.summary.replace(/^[🔄✅] /, '');
+                break;
+        }
+
+        return this.makeRequest(`/calendars/${calendarId}/events/${eventId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ ...currentEvent, ...updates })
+        });
+    }
+}
+
+// Google Tasks Class
+class GoogleTasks {
+    constructor() {
+        this.baseUrl = 'https://www.googleapis.com/tasks/v1';
+    }
+
+    async getAccessToken() {
+        const result = await chrome.storage.local.get(['googleAuth']);
+        return result.googleAuth?.accessToken;
+    }
+
+    async makeRequest(endpoint, options = {}) {
+        const token = await this.getAccessToken();
+        if (!token) throw new Error('No access token available');
+
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            ...options
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`Tasks API error: ${response.status} - ${errorData.error?.message || response.statusText}`);
+        }
+        return response.json();
+    }
+
+    async listTaskLists() {
+        const response = await this.makeRequest('/users/@me/lists');
+        return response.items.map(list => ({
+            id: list.id,
+            title: list.title
+        }));
+    }
+
+    async createTask(task, taskListId) {
+        if (!task.task || task.task.trim() === '') {
+            throw new Error('Task title cannot be empty');
+        }
+
+        const googleTask = {
+            title: task.task.trim(),
+            notes: `Source: ${task.context?.url || 'Unknown'}\nPriority: ${task.priority || 'medium'}`,
+            status: 'needsAction'
+        };
+
+        const response = await this.makeRequest(`/lists/${taskListId}/tasks`, {
+            method: 'POST',
+            body: JSON.stringify(googleTask)
+        });
+        return { id: response.id, title: response.title, status: response.status };
+    }
+
+    async updateTaskStatus(taskId, status, taskListId) {
+        const currentTask = await this.makeRequest(`/lists/${taskListId}/tasks/${taskId}`);
+        let updates = {};
+
+        switch (status) {
+            case 'in-progress':
+                updates.status = 'needsAction';
+                if (!currentTask.title.startsWith('🔄')) {
+                    updates.title = `🔄 ${currentTask.title}`;
+                }
+                break;
+            case 'completed':
+                updates.status = 'completed';
+                if (!currentTask.title.startsWith('✅')) {
+                    updates.title = `✅ ${currentTask.title}`;
+                }
+                break;
+            default:
+                updates.status = 'needsAction';
+                updates.title = currentTask.title.replace(/^[🔄✅] /, '');
+                break;
+        }
+
+        return this.makeRequest(`/lists/${taskListId}/tasks/${taskId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ ...currentTask, ...updates })
+        });
+    }
+}
+
+// Create global instances
+const googleAuth = new GoogleAuth();
+const googleCalendar = new GoogleCalendar();
+const googleTasks = new GoogleTasks();
 
 let aiSession = null;
 let summarizerSession = null;
@@ -280,13 +553,13 @@ async function saveTask(taskData) {
 async function syncTaskToGoogle(task) {
   try {
     console.log('[Google Sync] Starting sync for task:', task.task);
-    
+
     const settings = await chrome.storage.local.get(['settings']);
     const { selectedCalendarId, selectedTaskListId, calendarEnabled } = settings.settings || {};
-    
+
     let calendarEvent = null;
     let googleTask = null;
-    
+
     // Create Calendar event if enabled
     if (calendarEnabled && selectedCalendarId) {
       try {
@@ -297,7 +570,7 @@ async function syncTaskToGoogle(task) {
         console.error('[Google Sync] ✗ Calendar event creation failed:', error);
       }
     }
-    
+
     // Create Google Task
     if (selectedTaskListId) {
       try {
@@ -317,13 +590,13 @@ async function syncTaskToGoogle(task) {
         console.error('[Google Sync] ✗ Google Task creation failed:', error);
       }
     }
-    
+
     // Update local task with Google IDs
     if (calendarEvent || googleTask) {
       const result = await chrome.storage.local.get(['tasks']);
       const tasks = result.tasks || [];
       const taskIndex = tasks.findIndex(t => t.id === task.id);
-      
+
       if (taskIndex !== -1) {
         tasks[taskIndex].googleCalendarId = calendarEvent?.id || null;
         tasks[taskIndex].googleTaskId = googleTask?.id || null;
@@ -331,7 +604,7 @@ async function syncTaskToGoogle(task) {
         console.log('[Google Sync] ✓ Local task updated with Google IDs');
       }
     }
-    
+
     console.log('[Google Sync] ✓ Sync completed');
   } catch (error) {
     console.error('[Google Sync] ✗ Sync failed:', error);
@@ -821,23 +1094,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
       try {
         const { taskId, newStatus } = message.data;
-        
+
         // Update local task
         const result = await chrome.storage.local.get(['tasks']);
         const tasks = result.tasks || [];
         const taskIndex = tasks.findIndex(t => t.id === taskId);
-        
+
         if (taskIndex !== -1) {
           tasks[taskIndex].status = newStatus;
           await chrome.storage.local.set({ tasks });
-          
+
           // Update Google services if authenticated
           const isAuthenticated = await googleAuth.isUserAuthenticated();
           if (isAuthenticated) {
             const task = tasks[taskIndex];
             const settings = await chrome.storage.local.get(['settings']);
             const { selectedCalendarId, selectedTaskListId, calendarEnabled } = settings.settings || {};
-            
+
             // Update Calendar event
             if (calendarEnabled && selectedCalendarId && task.googleCalendarId) {
               try {
@@ -847,7 +1120,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 console.error('[Background] ✗ Calendar update failed:', error);
               }
             }
-            
+
             // Update Google Task
             if (task.googleTaskId) {
               try {
@@ -859,7 +1132,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               }
             }
           }
-          
+
           sendResponse({ success: true });
         } else {
           sendResponse({ success: false, error: 'Task not found' });

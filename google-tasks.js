@@ -1,8 +1,6 @@
 // Google Tasks API Client
 // Handles Tasks API operations for creating, updating, and managing tasks
 
-import { googleAuth } from './google-auth.js';
-
 class GoogleTasks {
     constructor() {
         this.baseUrl = 'https://www.googleapis.com/tasks/v1';
@@ -338,5 +336,5 @@ class GoogleTasks {
     }
 }
 
-// Export singleton instance
-export const googleTasks = new GoogleTasks();
+// Create global instance
+const googleTasks = new GoogleTasks();
