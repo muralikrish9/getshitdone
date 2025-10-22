@@ -8,13 +8,13 @@ GetShitDone is a Chrome extension that revolutionizes knowledge work tracking by
 
 ## Features
 
-- **🎯 Smart Highlight Capture**: Highlight text anywhere and instantly create tasks
-- **🤖 AI Task Extraction**: Uses Chrome's Prompt API to infer tasks, priorities, deadlines, and durations
-- **📝 Automatic Summarization**: Chrome's Summarizer API condenses content into clear descriptions
-- **📊 Daily Work Reports**: Writer API generates professional summaries with project groupings
-- **⏱️ Time Tracking**: Automatic time tracking per project and task
-- **📅 Google Calendar Sync**: Create time-blocked calendar events (hybrid AI approach)
-- **💾 Local Storage**: All data stays on your device using Chrome Storage API
+- **Smart Highlight Capture**: Highlight text anywhere and instantly create tasks
+- **AI Task Extraction**: Uses Chrome's Prompt API to infer tasks, priorities, deadlines, and durations
+- **Automatic Summarization**: Chrome's Summarizer API condenses content into clear descriptions
+- **Daily Work Reports**: Writer API generates professional summaries with project groupings
+- **Time Tracking**: Automatic time tracking per project and task
+- **Google Calendar Sync**: Create time-blocked calendar events (hybrid AI approach)
+- **Local Storage**: All data stays on your device using Chrome Storage API
 
 ## Technology Stack
 
@@ -55,7 +55,7 @@ GetShitDone is a Chrome extension that revolutionizes knowledge work tracking by
 
 1. Browse any webpage (email, article, document)
 2. Highlight text containing a task or action item
-3. Click the "✨ Capture Task" button that appears
+3. Click the "Capture Task" button that appears
 4. AI automatically extracts task details and saves them
 5. View captured tasks by clicking the extension icon
 
@@ -139,4 +139,4 @@ MIT License - Built for educational purposes and the Google Chrome Built-in AI C
 
 ---
 
-**Built with ✨ and Chrome's Built-in AI**
+**Built with Chrome's Built-in AI**
