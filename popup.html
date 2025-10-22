@@ -22,17 +22,26 @@
     <div class="tab-content active" id="today">
       <div class="stats">
         <div class="stat-card">
-          <span class="stat-label">Tasks Captured</span>
-          <span class="stat-value" id="taskCount">0</span>
+          <span class="stat-label">Todo</span>
+          <span class="stat-value" id="todoCount">0</span>
         </div>
         <div class="stat-card">
-          <span class="stat-label">Time Tracked</span>
-          <span class="stat-value" id="timeTracked">0h</span>
+          <span class="stat-label">In Progress</span>
+          <span class="stat-value" id="inProgressCount">0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Done</span>
+          <span class="stat-value" id="doneCount">0</span>
         </div>
       </div>
 
+      <div class="task-status-nav">
+        <button class="status-nav-btn active" data-status="todo">Todo</button>
+        <button class="status-nav-btn" data-status="in_progress">In Progress</button>
+        <button class="status-nav-btn" data-status="done">Done</button>
+      </div>
+
       <section class="section">
-        <h2>Recent Tasks</h2>
         <div id="taskList" class="task-list">
           <p class="empty-state">No tasks captured yet. Highlight text on any webpage to get started!</p>
         </div>

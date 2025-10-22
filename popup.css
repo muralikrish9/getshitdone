@@ -117,32 +117,360 @@ header h1 {
   overflow-y: auto;
 }
 
+/* Task Status Navigation */
+.task-status-nav {
+  display: flex;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 16px;
+}
+
+.status-nav-btn {
+  flex: 1;
+  padding: 12px 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.status-nav-btn:hover {
+  color: #333;
+  background: #f8f9fa;
+}
+
+.status-nav-btn.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+  background: #f0f2ff;
+}
+
+/* Enhanced Task Items */
 .task-item {
-  background: #f9f9f9;
-  padding: 12px;
-  border-radius: 6px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
   margin-bottom: 8px;
-  border-left: 3px solid #667eea;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.task-item:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  transform: translateY(-1px);
+}
+
+.task-item.dragging {
+  opacity: 0.5;
+  transform: rotate(2deg) scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+}
+
+.task-item.drag-over {
+  border-color: #667eea;
+  background: #f0f2ff;
+  transform: scale(1.02);
+}
+
+.task-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+}
+
+.task-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.status-icon {
+  font-size: 16px;
+  transition: transform 0.2s;
+}
+
+.task-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #667eea;
+  transition: all 0.2s;
+}
+
+.task-checkbox:hover {
+  transform: scale(1.1);
+}
+
+.task-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .task-title {
   font-weight: 500;
-  margin-bottom: 5px;
-  font-size: 14px;
+  margin-bottom: 12px;
+  color: #333;
+  line-height: 1.4;
+  transition: all 0.2s;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+}
+
+.task-title:focus {
+  outline: none;
+  background: #f8f9fa;
+  border: 1px solid #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
 .task-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
   font-size: 12px;
-  color: #666;
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
 }
 
-.task-meta span {
-  display: inline-flex;
+.task-field {
+  display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 6px;
+  color: #666;
+}
+
+.task-field label {
+  font-weight: 500;
+  min-width: 60px;
+  color: #555;
+}
+
+.task-priority,
+.task-duration,
+.task-project,
+.task-deadline {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 12px;
+  transition: all 0.2s;
+  background: white;
+}
+
+.task-priority:focus,
+.task-duration:focus,
+.task-project:focus,
+.task-deadline:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.task-item:hover .task-actions {
+  opacity: 1;
+}
+
+.task-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  color: #ff4757;
+}
+
+.task-delete:hover {
+  background: #ffe6e6;
+  transform: scale(1.1);
+}
+
+.drag-handle {
+  cursor: grab;
+  color: #999;
+  font-size: 14px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.drag-handle:hover {
+  color: #667eea;
+  background: #f0f2ff;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.task-priority-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 12px 0 0 12px;
+}
+
+/* Animation Classes */
+.task-item.entering {
+  animation: taskEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.task-item.leaving {
+  animation: taskLeave 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes taskEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes taskLeave {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-100%) scale(0.8);
+  }
+}
+
+/* Status Change Animations */
+.task-item.status-changing {
+  animation: statusChange 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes statusChange {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Drag and Drop Visual Feedback */
+.task-list {
+  min-height: 100px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.task-list.drag-active {
+  background: #f8f9fa;
+  border: 2px dashed #667eea;
+  border-radius: 8px;
+}
+
+/* Enhanced Stats Cards */
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  border: 1px solid #e0e0e0;
+  transition: all 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stat-label {
+  display: block;
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.stat-value {
+  display: block;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Smooth Transitions for All Interactive Elements */
+* {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus States */
+input:focus,
+select:focus,
+textarea:focus,
+[contenteditable]:focus {
+  outline: none;
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1) !important;
+}
+
+/* Button Hover Effects */
+.btn-primary:hover,
+.btn-secondary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Loading States */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #667eea;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .empty-state {

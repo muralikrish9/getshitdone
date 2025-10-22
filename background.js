@@ -179,7 +179,9 @@ async function saveTask(taskData) {
     ...taskData,
     createdAt: new Date().toISOString(),
     completed: false,
-    syncedToGoogle: false
+    syncedToGoogle: false,
+    status: 'todo',
+    order: Date.now()
   };
 
   const result = await chrome.storage.local.get(['tasks', 'settings']);
