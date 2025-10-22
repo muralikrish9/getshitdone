@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "GetShitDone",
+  "version": "1.0.0",
+  "description": "AI-powered productivity extension that converts highlights into tasks and generates daily work summaries using Chrome's built-in AI",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "identity"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "trial_tokens": [
+    "A6/W7efVnTiTM9SpHxEN8mjZsRWjfMmHG28ACnlzo0FHnKQBT36KJbtXzcs2GXh2Hb3uq7GNkwqEUrRFjuMmqwEAAACPeyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8vZmRlamNoaWtjcGhqY2tramtuYWVoZXBnbWdwaGlmamsiLCJmZWF0dXJlIjoiQUlQcm9tcHRBUElNdWx0aW1vZGFsSW5wdXQiLCJleHBpcnkiOjE3NzQzMTA0MDAsImlzVGhpcmRQYXJ0eSI6dHJ1ZX0=",
+    "A1Z4dEFYy7uAvbrDt/V9doJ4oPey/0bK76cJUxYXX9zTW2a9b5iR4kCkMYYotusfWGhVJ4a/TdofG/w1mv7L9wMAAACCeyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8vZmRlamNoaWtjcGhqY2tramtuYWVoZXBnbWdwaGlmamsiLCJmZWF0dXJlIjoiQUlSZXdyaXRlckFQSSIsImV4cGlyeSI6MTc2OTQ3MjAwMCwiaXNUaGlyZFBhcnR5Ijp0cnVlfQ==",
+    "A9J4SbwLKpex6Lv6y8BoH/k0esDLtasrMYxSmTLydJtiU/oQcvuWHyz4FF9KLY04UJ6BXOyxDweYW/JMuT9QXwAAAACAeyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8vZmRlamNoaWtjcGhqY2tramtuYWVoZXBnbWdwaGlmamsiLCJmZWF0dXJlIjoiQUlXcml0ZXJBUEkiLCJleHBpcnkiOjE3Njk0NzIwMDAsImlzVGhpcmRQYXJ0eSI6dHJ1ZX0="
+  ],
+  "oauth2": {
+    "client_id": "YOUR_GOOGLE_OAUTH_CLIENT_ID_HERE",
+    "scopes": [
+      "https://www.googleapis.com/auth/tasks",
+      "https://www.googleapis.com/auth/calendar",
+      "https://www.googleapis.com/auth/userinfo.email"
+    ]
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAg9jl8VqPjhWmPvnbqvFQ6F7TFI5LBhYmBjhVjEQXmhLG9X4hXHQR6QV5mRvQ3qF5XmhVFXVQHj8vPQ7ZXQhLVmFQ6F7TFI5LBhYmBjhVjEQXmhLG9X4hXHQR6QV5mRvQ3qF5XmhVFXVQHj8vPQ7ZXQhLVmFQAg9jl8VqPjhWmPvnbqvFQ6F7TFI5LBhYmBjhVjEQXmhLG9X4hXHQR6QV5mRvQ3qF5XmhVFXVQHj8vPQ7ZXQhLVmFQ6F7TFI5LBhYmBjhVjEQXmhLG9X4hXHQR6QV5mRvQ3qF5XmhVFXVQHj8vPQ7ZXQhLVmFQAg9jl8VqPjhWmPvnbqvFQIDAQAB"
+}
