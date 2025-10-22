@@ -91,8 +91,6 @@ GetShitDone is a Chrome extension that revolutionizes knowledge work tracking by
 ├── popup.js            # Popup functionality and data display
 ├── popup.css           # Popup styling
 ├── icons/              # Extension icons (16px, 48px, 128px)
-├── index.html          # Landing page with instructions
-├── server.py           # Simple HTTP server for documentation
 └── README.md           # This file
 ```
 
@@ -105,16 +103,6 @@ This extension is designed for:
 - **Best Multimodal AI Application** ($9,000): Architecture ready for image/audio input expansion
 
 ## Development
-
-### Local Development Server
-
-Run the documentation server:
-
-```bash
-python server.py
-```
-
-Visit `http://localhost:5000` for installation instructions.
 
 ### Extension Development
 
