@@ -39,6 +39,7 @@ function handleCapture() {
   const selectedText = window.getSelection().toString().trim();
   
   if (!selectedText) {
+    console.log('[Content] No text selected');
     return;
   }
 
@@ -49,10 +50,20 @@ function handleCapture() {
     timestamp: new Date().toISOString()
   };
 
+  console.log('[Content] Sending message to background:', pageContext);
+
   chrome.runtime.sendMessage({
     action: 'captureTask',
     data: pageContext
   }, (response) => {
+    if (chrome.runtime.lastError) {
+      console.error('[Content] Runtime error:', chrome.runtime.lastError);
+      showNotification('Failed to capture task: ' + chrome.runtime.lastError.message, 'error');
+      return;
+    }
+    
+    console.log('[Content] Received response:', response);
+    
     if (response && response.success) {
       showNotification('Task captured successfully!', 'success');
     } else {

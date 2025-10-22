@@ -248,19 +248,24 @@ async function generateDailySummary() {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('[Background] Received message:', message.action);
+  
   if (message.action === 'captureTask') {
     (async () => {
       try {
+        console.log('[Background] Processing task capture...');
         const extracted = await extractTaskFromText(
           message.data.selectedText,
           message.data
         );
         
+        console.log('[Background] Task extracted:', extracted);
         const task = await saveTask(extracted);
         
+        console.log('[Background] Task saved, sending response');
         sendResponse({ success: true, task });
       } catch (error) {
-        console.error('Capture failed:', error);
+        console.error('[Background] Capture failed:', error);
         sendResponse({ success: false, error: error.message });
       }
     })();
