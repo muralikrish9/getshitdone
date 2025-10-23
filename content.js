@@ -66,29 +66,39 @@ function handleCapture() {
   console.log('[Content] Page context:', context);
   console.log('[Content] >>> Sending message to background script...');
 
-  chrome.runtime.sendMessage({
-    action: 'captureTask',
-    data: context
-  }, (response) => {
-    console.log('[Content] <<< Response received from background');
-
-    if (chrome.runtime.lastError) {
-      console.error('[Content] ✗ Runtime error:', chrome.runtime.lastError);
-      showNotification('Failed to capture task: ' + chrome.runtime.lastError.message, 'error');
-      return;
-    }
-
-    console.log('[Content] Response data:', response);
-
-    if (response && response.success) {
-      console.log('[Content] ✓ Task captured successfully!');
-      console.log('[Content] Saved task:', response.task);
-      showNotification('✓ Task captured successfully!', 'success');
-    } else {
-      console.error('[Content] ✗ Task capture failed:', response?.error || 'Unknown error');
-      showNotification('✗ Failed to capture task: ' + (response?.error || 'Unknown error'), 'error');
-    }
-  });
+  try {
+    chrome.runtime.sendMessage({
+      action: 'captureTask',
+      data: context
+    }, (response) => {
+      console.log('[Content] <<< Response received from background');
+      
+      if (chrome.runtime.lastError) {
+        console.error('[Content] ✗ Runtime error:', chrome.runtime.lastError);
+        showNotification('Failed to capture task: ' + chrome.runtime.lastError.message, 'error');
+        return;
+      }
+      
+      console.log('[Content] Response data:', response);
+      
+      if (response && response.success) {
+        console.log('[Content] ✓ Task captured successfully!');
+        console.log('[Content] Saved task:', response.task);
+        showNotification('✓ Task captured successfully!', 'success');
+      } else {
+        console.error('[Content] ✗ Task capture failed:', response?.error || 'Unknown error');
+        showNotification('✗ Failed to capture task: ' + (response?.error || 'Unknown error'), 'error');
+      }
+    });
+  } catch (error) {
+    console.error('[Content] ✗ Extension context error:', error);
+    showNotification('Extension needs to be reloaded. Please refresh the page.', 'error');
+    
+    // Hide the button since we can't communicate with background
+    hideHighlightButton();
+    savedSelectedText = '';
+    savedContext = null;
+  }
 
   hideHighlightButton();
   savedSelectedText = '';
