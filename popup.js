@@ -7,13 +7,13 @@ const tabContents = document.querySelectorAll('.tab-content');
 tabs.forEach(tab => {
   tab.addEventListener('click', () => {
     const targetTab = tab.dataset.tab;
-    
+
     tabs.forEach(t => t.classList.remove('active'));
     tabContents.forEach(tc => tc.classList.remove('active'));
-    
+
     tab.classList.add('active');
     document.getElementById(targetTab).classList.add('active');
-    
+
     if (targetTab === 'today') {
       loadTasks();
     } else if (targetTab === 'settings') {
@@ -37,7 +37,7 @@ async function migrateTasks() {
   const result = await chrome.storage.local.get(['tasks']);
   const tasks = result.tasks || [];
   let needsMigration = false;
-  
+
   const migratedTasks = tasks.map(task => {
     if (!task.status) {
       task.status = 'todo';
@@ -49,7 +49,7 @@ async function migrateTasks() {
     }
     return task;
   });
-  
+
   if (needsMigration) {
     await chrome.storage.local.set({ tasks: migratedTasks });
     console.log('[Migration] Tasks migrated with status and order fields');
@@ -58,40 +58,40 @@ async function migrateTasks() {
 
 async function loadTasks() {
   await migrateTasks();
-  
+
   const result = await chrome.storage.local.get(['tasks']);
   const tasks = result.tasks || [];
-  
+
   // Update stats
   const todoTasks = tasks.filter(task => task.status === 'todo');
   const inProgressTasks = tasks.filter(task => task.status === 'in_progress');
   const doneTasks = tasks.filter(task => task.status === 'done');
-  
+
   document.getElementById('todoCount').textContent = todoTasks.length;
   document.getElementById('inProgressCount').textContent = inProgressTasks.length;
   document.getElementById('doneCount').textContent = doneTasks.length;
-  
+
   // Filter tasks by current status
   const currentTasks = tasks.filter(task => task.status === currentStatus);
-  
+
   const taskList = document.getElementById('taskList');
-  
+
   if (currentTasks.length === 0) {
-    const emptyMessage = currentStatus === 'todo' 
+    const emptyMessage = currentStatus === 'todo'
       ? 'No tasks to do. Highlight text on any webpage to get started!'
       : currentStatus === 'in_progress'
-      ? 'No tasks in progress. Move tasks from Todo to get started!'
-      : 'No completed tasks yet. Mark tasks as done to see them here!';
-    
+        ? 'No tasks in progress. Move tasks from Todo to get started!'
+        : 'No completed tasks yet. Mark tasks as done to see them here!';
+
     taskList.innerHTML = `<p class="empty-state">${emptyMessage}</p>`;
     return;
   }
-  
+
   // Sort by order
   currentTasks.sort((a, b) => (a.order || 0) - (b.order || 0));
-  
+
   taskList.innerHTML = currentTasks.map(task => renderTaskItem(task)).join('');
-  
+
   // Add event listeners for all task interactions
   addTaskEventListeners();
 }
@@ -99,16 +99,16 @@ async function loadTasks() {
 function renderTaskItem(task) {
   const priorityColors = {
     high: '#ff4757',
-    medium: '#ffa502', 
+    medium: '#ffa502',
     low: '#2ed573'
   };
-  
+
   const statusIcons = {
     todo: '⭕',
     in_progress: '🔄',
     done: '✅'
   };
-  
+
   return `
     <div class="task-item" data-task-id="${task.id}" draggable="true">
       <div class="task-header">
@@ -165,13 +165,13 @@ function addTaskEventListeners() {
       toggleTaskStatus(taskId);
     });
   });
-  
+
   // Inline editing
   document.querySelectorAll('[data-field]').forEach(field => {
     field.addEventListener('blur', (e) => {
       saveTaskEdit(e.target);
     });
-    
+
     field.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.target.matches('select, input[type="date"]')) {
         e.preventDefault();
@@ -179,7 +179,7 @@ function addTaskEventListeners() {
       }
     });
   });
-  
+
   // Delete buttons
   document.querySelectorAll('.task-delete').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -187,7 +187,7 @@ function addTaskEventListeners() {
       deleteTask(taskId);
     });
   });
-  
+
   // Drag and drop
   document.querySelectorAll('.task-item').forEach(item => {
     item.addEventListener('dragstart', handleDragStart);
@@ -200,24 +200,24 @@ function addTaskEventListeners() {
 async function toggleTaskStatus(taskId) {
   const result = await chrome.storage.local.get(['tasks']);
   const tasks = result.tasks || [];
-  
+
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
-  
+
   // Cycle through statuses: todo -> in_progress -> done -> todo
   const statusCycle = ['todo', 'in_progress', 'done'];
   const currentIndex = statusCycle.indexOf(task.status);
   const nextIndex = (currentIndex + 1) % statusCycle.length;
   task.status = statusCycle[nextIndex];
-  
+
   await chrome.storage.local.set({ tasks });
-  
+
   // Animate the change
   const taskItem = document.querySelector(`[data-task-id="${taskId}"]`);
   if (taskItem) {
     taskItem.style.transform = 'scale(0.95)';
     taskItem.style.opacity = '0.7';
-    
+
     setTimeout(() => {
       loadTasks(); // Reload to show updated status
     }, 150);
@@ -229,7 +229,7 @@ async function saveTaskEdit(field) {
   const taskId = taskItem.dataset.taskId;
   const fieldName = field.dataset.field;
   let value = field.value;
-  
+
   // Handle different field types
   if (fieldName === 'task') {
     value = field.textContent.trim();
@@ -238,15 +238,15 @@ async function saveTaskEdit(field) {
   } else if (fieldName === 'deadline') {
     value = value ? new Date(value).toISOString() : null;
   }
-  
+
   const result = await chrome.storage.local.get(['tasks']);
   const tasks = result.tasks || [];
-  
+
   const task = tasks.find(t => t.id === taskId);
   if (task) {
     task[fieldName] = value;
     await chrome.storage.local.set({ tasks });
-    
+
     // Visual feedback
     field.style.backgroundColor = '#e8f5e8';
     setTimeout(() => {
@@ -257,24 +257,24 @@ async function saveTaskEdit(field) {
 
 async function deleteTask(taskId) {
   if (!confirm('Are you sure you want to delete this task?')) return;
-  
+
   const result = await chrome.storage.local.get(['tasks']);
   const tasks = result.tasks || [];
-  
+
   const task = tasks.find(t => t.id === taskId);
   if (!task) return;
-  
+
   const taskItem = document.querySelector(`[data-task-id="${taskId}"]`);
   if (taskItem) {
     // Animate deletion
     taskItem.style.transform = 'translateX(-100%)';
     taskItem.style.opacity = '0';
-    
+
     setTimeout(async () => {
       // Remove from local storage
       const updatedTasks = tasks.filter(t => t.id !== taskId);
       await chrome.storage.local.set({ tasks: updatedTasks });
-      
+
       // Delete from Google services if synced
       if (task.syncedToGoogle) {
         try {
@@ -287,7 +287,7 @@ async function deleteTask(taskId) {
           console.error('[Delete] Failed to remove from Google services:', error);
         }
       }
-      
+
       loadTasks();
     }, 300);
   }
@@ -295,18 +295,18 @@ async function deleteTask(taskId) {
 
 function switchTaskView(status) {
   currentStatus = status;
-  
+
   // Update nav buttons
   document.querySelectorAll('.status-nav-btn').forEach(btn => {
     btn.classList.remove('active');
   });
   document.querySelector(`[data-status="${status}"]`).classList.add('active');
-  
+
   // Animate content transition
   const taskList = document.getElementById('taskList');
   taskList.style.opacity = '0';
   taskList.style.transform = 'translateY(10px)';
-  
+
   setTimeout(() => {
     loadTasks();
     taskList.style.opacity = '1';
@@ -324,7 +324,7 @@ function handleDragStart(e) {
 function handleDragOver(e) {
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
-  
+
   const taskItem = e.target.closest('.task-item');
   if (taskItem && taskItem.dataset.taskId !== draggedTaskId) {
     taskItem.classList.add('drag-over');
@@ -333,19 +333,19 @@ function handleDragOver(e) {
 
 function handleDrop(e) {
   e.preventDefault();
-  
+
   const targetTaskItem = e.target.closest('.task-item');
   if (!targetTaskItem || !draggedTaskId) return;
-  
+
   const targetTaskId = targetTaskItem.dataset.taskId;
-  
+
   if (targetTaskId === draggedTaskId) return;
-  
+
   // Remove drag classes
   document.querySelectorAll('.task-item').forEach(item => {
     item.classList.remove('drag-over');
   });
-  
+
   // Reorder tasks
   reorderTasks(draggedTaskId, targetTaskId);
 }
@@ -361,21 +361,21 @@ function handleDragEnd(e) {
 async function reorderTasks(draggedId, targetId) {
   const result = await chrome.storage.local.get(['tasks']);
   const tasks = result.tasks || [];
-  
+
   const draggedTask = tasks.find(t => t.id === draggedId);
   const targetTask = tasks.find(t => t.id === targetId);
-  
+
   if (!draggedTask || !targetTask) return;
-  
+
   // Update order values
   const draggedOrder = draggedTask.order;
   const targetOrder = targetTask.order;
-  
+
   draggedTask.order = targetOrder;
   targetTask.order = draggedOrder;
-  
+
   await chrome.storage.local.set({ tasks });
-  
+
   // Animate the reorder
   const draggedElement = document.querySelector(`[data-task-id="${draggedId}"]`);
   if (draggedElement) {
@@ -390,23 +390,23 @@ async function reorderTasks(draggedId, targetId) {
 document.getElementById('quickCaptureBtn').addEventListener('click', async () => {
   const input = document.getElementById('quickCaptureInput');
   const text = input.value.trim();
-  
+
   if (!text) return;
-  
+
   const button = document.getElementById('quickCaptureBtn');
   button.textContent = 'Capturing...';
   button.disabled = true;
-  
+
   try {
     const response = await chrome.runtime.sendMessage({
       action: 'quickCapture',
       data: { text }
     });
-    
+
     if (response.success) {
       input.value = '';
       await loadTasks();
-      
+
       // Animate new task
       const newTask = document.querySelector(`[data-task-id="${response.task.id}"]`);
       if (newTask) {
@@ -434,14 +434,14 @@ document.getElementById('generateSummaryBtn').addEventListener('click', async ()
 
   try {
     const response = await chrome.runtime.sendMessage({ action: 'generateSummary' });
-    
+
     if (response.success) {
       const summaryContent = document.getElementById('summaryContent');
       summaryContent.textContent = response.summary;
-      
+
       document.getElementById('copySummaryBtn').style.display = 'inline-block';
       document.getElementById('exportMarkdownBtn').style.display = 'inline-block';
-      
+
       await loadProjectBreakdown();
     }
   } catch (error) {
@@ -456,7 +456,7 @@ document.getElementById('generateSummaryBtn').addEventListener('click', async ()
 document.getElementById('copySummaryBtn').addEventListener('click', () => {
   const summary = document.getElementById('summaryContent').textContent;
   navigator.clipboard.writeText(summary);
-  
+
   const button = document.getElementById('copySummaryBtn');
   const originalText = button.textContent;
   button.textContent = 'Copied!';
@@ -479,9 +479,9 @@ document.getElementById('exportMarkdownBtn').addEventListener('click', () => {
 async function loadProjectBreakdown() {
   const result = await chrome.storage.local.get(['tasks']);
   const tasks = result.tasks || [];
-  
+
   const today = new Date().toDateString();
-  const todayTasks = tasks.filter(task => 
+  const todayTasks = tasks.filter(task =>
     new Date(task.createdAt).toDateString() === today
   );
 
@@ -496,7 +496,7 @@ async function loadProjectBreakdown() {
   });
 
   const breakdown = document.getElementById('projectBreakdown');
-  
+
   if (Object.keys(projectGroups).length === 0) {
     breakdown.innerHTML = '<p class="empty-state">Project time tracking will appear here</p>';
     return;
@@ -525,7 +525,7 @@ async function loadSettings() {
   document.getElementById('googleSyncEnabled').checked = settings.googleSyncEnabled !== false;
   document.getElementById('defaultDuration').value = settings.defaultDuration;
   document.getElementById('aiEnabled').checked = settings.aiEnabled;
-  
+
   await checkGoogleAuthStatus();
 }
 
@@ -542,13 +542,13 @@ async function saveSettings() {
 async function checkGoogleAuthStatus() {
   const statusText = document.getElementById('googleAuthStatus');
   statusText.textContent = 'Checking Google account status...';
-  
+
   try {
     const response = await chrome.runtime.sendMessage({ action: 'checkGoogleAuth' });
-    
+
     const signedOutView = document.getElementById('signedOutView');
     const signedInView = document.getElementById('signedInView');
-    
+
     if (response.signedIn) {
       signedOutView.style.display = 'none';
       signedInView.style.display = 'block';
@@ -575,10 +575,10 @@ async function handleGoogleSignIn() {
   const button = document.getElementById('googleSignInBtn');
   button.textContent = 'Signing in...';
   button.disabled = true;
-  
+
   try {
     const response = await chrome.runtime.sendMessage({ action: 'googleSignIn' });
-    
+
     if (response.success) {
       await checkGoogleAuthStatus();
       alert('Successfully signed in to Google!');
@@ -598,14 +598,14 @@ async function handleGoogleSignOut() {
   if (!confirm('Are you sure you want to sign out of Google? Future tasks will not sync until you sign in again.')) {
     return;
   }
-  
+
   const button = document.getElementById('googleSignOutBtn');
   button.textContent = 'Signing out...';
   button.disabled = true;
-  
+
   try {
     const response = await chrome.runtime.sendMessage({ action: 'googleSignOut' });
-    
+
     if (response.success) {
       await checkGoogleAuthStatus();
       alert('Successfully signed out of Google.');
@@ -629,9 +629,9 @@ document.getElementById('aiEnabled').addEventListener('change', saveSettings);
 
 async function checkAIStatus() {
   const response = await chrome.runtime.sendMessage({ action: 'checkAI' });
-  
+
   const statusDiv = document.getElementById('aiStatus');
-  
+
   if (response.available) {
     statusDiv.className = 'ai-status available';
     statusDiv.innerHTML = `

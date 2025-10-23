@@ -8,7 +8,7 @@ let writerSession = null;
 
 async function initializeAI() {
   console.log('[AI Init] Starting AI initialization...');
-  
+
   try {
     // Initialize Prompt API using Chrome's global LanguageModel constructor
     try {
@@ -65,17 +65,17 @@ async function initializeAI() {
 async function extractTaskFromText(text, context) {
   console.log('[Task Extract] Starting extraction for text:', text.substring(0, 100));
   console.log('[Task Extract] Context:', context);
-  
+
   try {
     const result = await chrome.storage.local.get(['settings']);
     const settings = result.settings || { aiEnabled: true };
     console.log('[Task Extract] Settings loaded:', settings);
-    
+
     if (!settings.aiEnabled) {
       console.log('[Task Extract] AI disabled in settings, using fallback');
       return createFallbackTask(text, context);
     }
-    
+
     if (!aiSession) {
       console.log('[Task Extract] No AI session, attempting to initialize...');
       await initializeAI();
@@ -111,7 +111,7 @@ Be concise and specific. If information is not explicit, make reasonable inferen
     console.log('[Task Extract] Sending prompt to AI...');
     const response = await aiSession.prompt(prompt);
     console.log('[Task Extract] AI response received:', response);
-    
+
     try {
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -144,7 +144,7 @@ async function summarizeText(text) {
       console.log('[Summarizer] Using AI to summarize text');
       return await summarizerSession.summarize(text);
     }
-    
+
     console.log('[Summarizer] No AI available, using truncation');
     return text.length > 100 ? text.substring(0, 100) + '...' : text;
   } catch (error) {
@@ -156,7 +156,7 @@ async function summarizeText(text) {
 function createFallbackTask(text, context) {
   console.log('[Fallback] Creating fallback task');
   const summary = text.length > 100 ? text.substring(0, 100) + '...' : text;
-  
+
   return {
     task: summary,
     priority: 'medium',
@@ -173,7 +173,7 @@ function createFallbackTask(text, context) {
 async function saveTask(taskData) {
   console.log('[Save Task] Saving task:', taskData);
   const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
+
   const task = {
     id: taskId,
     ...taskData,
@@ -187,7 +187,7 @@ async function saveTask(taskData) {
   const result = await chrome.storage.local.get(['tasks', 'settings']);
   const tasks = result.tasks || [];
   const settings = result.settings || { googleSyncEnabled: true };
-  
+
   tasks.push(task);
   await chrome.storage.local.set({ tasks });
   console.log('[Save Task] ✓ Task saved locally. Total tasks:', tasks.length);
@@ -197,22 +197,22 @@ async function saveTask(taskData) {
       const signedIn = await isSignedIn();
       if (signedIn) {
         console.log('[Save Task] Syncing to Google services...');
-        
+
         const results = await Promise.allSettled([
           syncToGoogleTasks(task),
           syncTaskToCalendar(task)
         ]);
-        
+
         const tasksSuccess = results[0].status === 'fulfilled';
         const calendarSuccess = results[1].status === 'fulfilled';
-        
+
         if (!tasksSuccess) {
           console.error('[Save Task] ✗ Google Tasks sync failed:', results[0].reason);
         }
         if (!calendarSuccess) {
           console.error('[Save Task] ✗ Google Calendar sync failed:', results[1].reason);
         }
-        
+
         if (tasksSuccess && calendarSuccess) {
           task.syncedToGoogle = true;
           // Store Google IDs for future deletion
@@ -260,7 +260,7 @@ async function createCalendarEvent(task, settings) {
     };
 
     console.log('[Calendar] TODO: Google Calendar API integration - Event prepared:', event);
-    
+
   } catch (error) {
     console.error('[Calendar] Failed to create calendar event:', error);
   }
@@ -268,13 +268,13 @@ async function createCalendarEvent(task, settings) {
 
 async function generateDailySummary() {
   console.log('[Summary] Generating daily summary...');
-  
+
   try {
     const result = await chrome.storage.local.get(['tasks']);
     const tasks = result.tasks || [];
-    
+
     const today = new Date().toDateString();
-    const todayTasks = tasks.filter(task => 
+    const todayTasks = tasks.filter(task =>
       new Date(task.createdAt).toDateString() === today
     );
 
@@ -294,13 +294,13 @@ async function generateDailySummary() {
     });
 
     let summaryText = `Daily Work Summary - ${new Date().toLocaleDateString()}\n\n`;
-    
+
     let totalMinutes = 0;
     Object.keys(projectGroups).forEach(project => {
       const projectTasks = projectGroups[project];
       const projectMinutes = projectTasks.reduce((sum, task) => sum + (task.estimatedDuration || 30), 0);
       totalMinutes += projectMinutes;
-      
+
       summaryText += `${project} (${Math.round(projectMinutes / 60 * 10) / 10}h):\n`;
       projectTasks.forEach(task => {
         summaryText += `  - ${task.task}\n`;
@@ -337,7 +337,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('[Background] Received message:', message.action);
   console.log('[Background] Message data:', message.data);
   console.log('[Background] Sender:', sender);
-  
+
   if (message.action === 'captureTask') {
     console.log('[Background] >>> Starting captureTask handler');
     (async () => {
@@ -345,15 +345,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log('[Background] Processing task capture...');
         console.log('[Background] Selected text:', message.data.selectedText);
         console.log('[Background] Context:', message.data);
-        
+
         const extracted = await extractTaskFromText(
           message.data.selectedText,
           message.data
         );
-        
+
         console.log('[Background] Task extracted:', extracted);
         const task = await saveTask(extracted);
-        
+
         console.log('[Background] ✓ Task saved successfully, sending response');
         sendResponse({ success: true, task });
       } catch (error) {
@@ -384,7 +384,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('[Background] >>> Starting checkAI handler');
     (async () => {
       const available = await initializeAI();
-      const status = { 
+      const status = {
         available,
         hasPrompt: !!aiSession,
         hasSummarizer: !!summarizerSession,
@@ -404,7 +404,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           message.data.text,
           { title: 'Quick Capture', url: 'manual', timestamp: new Date().toISOString() }
         );
-        
+
         const task = await saveTask(extracted);
         console.log('[Background] ✓ Quick capture successful');
         sendResponse({ success: true, task });
@@ -472,7 +472,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       try {
         const { taskId, task } = message.data;
         console.log('[Background] Deleting task from Google services:', taskId);
-        
+
         const signedIn = await isSignedIn();
         if (!signedIn) {
           console.log('[Background] User not signed in, skipping Google deletion');
@@ -486,17 +486,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           task.googleTaskId ? deleteFromGoogleTasks(task.googleTaskId) : Promise.resolve(true),
           task.googleEventId ? deleteFromGoogleCalendar(task.googleEventId) : Promise.resolve(true)
         ]);
-        
+
         const tasksSuccess = results[0].status === 'fulfilled';
         const calendarSuccess = results[1].status === 'fulfilled';
-        
+
         if (!tasksSuccess) {
           console.error('[Background] ✗ Google Tasks deletion failed:', results[0].reason);
         }
         if (!calendarSuccess) {
           console.error('[Background] ✗ Google Calendar deletion failed:', results[1].reason);
         }
-        
+
         if (tasksSuccess && calendarSuccess) {
           console.log('[Background] ✓ Task deleted from Google Tasks and Calendar');
           sendResponse({ success: true, message: 'Deleted from Google services' });
@@ -514,16 +514,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     })();
     return true;
   }
-  
+
   console.log('[Background] ⚠ Unknown action received:', message.action);
 });
 
 chrome.runtime.onInstalled.addListener(async (details) => {
   console.log('[Install] ========================================');
   console.log('[Install] GetShitDone event:', details.reason);
-  
+
   await initializeAI();
-  
+
   if (details.reason === 'install') {
     await chrome.storage.local.set({
       tasks: [],

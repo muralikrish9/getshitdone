@@ -13,11 +13,11 @@ export async function getCalendars() {
         'Content-Type': 'application/json'
       }
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const data = await response.json();
     console.log('[Google Calendar] ✓ Found', data.items?.length || 0, 'calendars');
     return data.items || [];
@@ -30,9 +30,9 @@ export async function getCalendars() {
 export async function createEvent(calendarId, eventData) {
   try {
     const token = await getAuthToken(false);
-    
+
     console.log('[Google Calendar] Creating event:', eventData.summary);
-    
+
     const response = await fetch(
       `${CALENDAR_API_BASE}/calendars/${calendarId}/events`,
       {
@@ -44,11 +44,11 @@ export async function createEvent(calendarId, eventData) {
         body: JSON.stringify(eventData)
       }
     );
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const data = await response.json();
     console.log('[Google Calendar] ✓ Event created:', data.id);
     return data;
@@ -61,11 +61,11 @@ export async function createEvent(calendarId, eventData) {
 export async function syncTaskToCalendar(task) {
   try {
     console.log('[Google Calendar] Syncing task to calendar:', task.task);
-    
+
     const startTime = new Date();
     const duration = task.estimatedDuration || 30;
     const endTime = new Date(startTime.getTime() + duration * 60000);
-    
+
     const event = {
       summary: `📝 ${task.task}`,
       description: `Captured from: ${task.context.url}\n\nOriginal text: ${task.originalText}\n\nPriority: ${task.priority}\nProject: ${task.project || 'General'}\n\nTags: ${task.tags?.join(', ') || 'None'}`,
@@ -85,13 +85,13 @@ export async function syncTaskToCalendar(task) {
         ]
       }
     };
-    
+
     if (task.deadline) {
       event.description += `\n\nDeadline: ${task.deadline}`;
     }
-    
+
     const calendarEvent = await createEvent('primary', event);
-    
+
     console.log('[Google Calendar] ✓ Task synced to calendar');
     return calendarEvent;
   } catch (error) {
@@ -103,9 +103,9 @@ export async function syncTaskToCalendar(task) {
 export async function deleteEvent(eventId) {
   try {
     const token = await getAuthToken(false);
-    
+
     console.log('[Google Calendar] Deleting event:', eventId);
-    
+
     const response = await fetch(
       `${CALENDAR_API_BASE}/calendars/primary/events/${eventId}`,
       {
@@ -116,11 +116,11 @@ export async function deleteEvent(eventId) {
         }
       }
     );
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     console.log('[Google Calendar] ✓ Event deleted successfully');
     return true;
   } catch (error) {
