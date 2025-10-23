@@ -57,15 +57,19 @@ async function migrateTasks() {
 }
 
 async function loadTasks() {
+  console.log('[Popup] Loading tasks...');
   await migrateTasks();
 
   const result = await chrome.storage.local.get(['tasks']);
   const tasks = result.tasks || [];
+  console.log('[Popup] Total tasks in storage:', tasks.length);
 
   // Update stats
   const todoTasks = tasks.filter(task => task.status === 'todo');
   const inProgressTasks = tasks.filter(task => task.status === 'in_progress');
   const doneTasks = tasks.filter(task => task.status === 'done');
+
+  console.log('[Popup] Tasks by status - Todo:', todoTasks.length, 'In Progress:', inProgressTasks.length, 'Done:', doneTasks.length);
 
   document.getElementById('todoCount').textContent = todoTasks.length;
   document.getElementById('inProgressCount').textContent = inProgressTasks.length;
@@ -73,6 +77,7 @@ async function loadTasks() {
 
   // Filter tasks by current status
   const currentTasks = tasks.filter(task => task.status === currentStatus);
+  console.log('[Popup] Current status:', currentStatus, 'Tasks for this status:', currentTasks.length);
 
   const taskList = document.getElementById('taskList');
 
@@ -83,6 +88,7 @@ async function loadTasks() {
         ? 'No tasks in progress. Move tasks from Todo to get started!'
         : 'No completed tasks yet. Mark tasks as done to see them here!';
 
+    console.log('[Popup] No tasks for current status, showing empty state');
     taskList.innerHTML = `<p class="empty-state">${emptyMessage}</p>`;
     return;
   }
@@ -141,7 +147,7 @@ function renderTaskItem(task) {
             <div class="task-field">
               <label>Deadline:</label>
               <input type="date" class="task-deadline" data-field="deadline" 
-                     value="${task.deadline ? new Date(task.deadline).toISOString().split('T')[0] : ''}">
+                     value="${formatDateForInput(task.deadline)}">
             </div>
           </div>
         </div>
@@ -386,45 +392,7 @@ async function reorderTasks(draggedId, targetId) {
   }
 }
 
-// Quick capture functionality
-document.getElementById('quickCaptureBtn').addEventListener('click', async () => {
-  const input = document.getElementById('quickCaptureInput');
-  const text = input.value.trim();
-
-  if (!text) return;
-
-  const button = document.getElementById('quickCaptureBtn');
-  button.textContent = 'Capturing...';
-  button.disabled = true;
-
-  try {
-    const response = await chrome.runtime.sendMessage({
-      action: 'quickCapture',
-      data: { text }
-    });
-
-    if (response.success) {
-      input.value = '';
-      await loadTasks();
-
-      // Animate new task
-      const newTask = document.querySelector(`[data-task-id="${response.task.id}"]`);
-      if (newTask) {
-        newTask.style.transform = 'scale(0.8)';
-        newTask.style.opacity = '0';
-        setTimeout(() => {
-          newTask.style.transform = 'scale(1)';
-          newTask.style.opacity = '1';
-        }, 50);
-      }
-    }
-  } catch (error) {
-    console.error('Quick capture failed:', error);
-  } finally {
-    button.textContent = 'Capture Task';
-    button.disabled = false;
-  }
-});
+// Quick capture removed from popup UI; functionality moved to context menu
 
 // Summary functionality (unchanged)
 document.getElementById('generateSummaryBtn').addEventListener('click', async () => {
@@ -672,5 +640,32 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function formatDateForInput(value) {
+  try {
+    if (!value) return '';
+    // Accept ISO strings or natural language; try Date parse but guard invalid
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return '';
+    // Return yyyy-mm-dd
+    return date.toISOString().split('T')[0];
+  } catch (e) {
+    return '';
+  }
+}
+
 // Initialize
 loadTasks();
+
+// Listen for popup focus to refresh tasks
+window.addEventListener('focus', () => {
+  loadTasks();
+});
+
+// Listen for storage changes to refresh tasks
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'local' && changes.tasks) {
+    console.log('[Popup] Tasks changed, refreshing...');
+    console.log('[Popup] New tasks count:', changes.tasks.newValue?.length || 0);
+    loadTasks();
+  }
+});

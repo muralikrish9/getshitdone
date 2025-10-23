@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GetShitDone</title>
   <link rel="stylesheet" href="popup.css">
 </head>
+
 <body>
   <div class="container">
     <header>
@@ -47,13 +49,7 @@
         </div>
       </section>
 
-      <section class="section">
-        <h2>Quick Capture</h2>
-        <div class="quick-capture">
-          <textarea id="quickCaptureInput" placeholder="Paste or type a task..."></textarea>
-          <button id="quickCaptureBtn" class="btn-primary">Capture Task</button>
-        </div>
-      </section>
+
     </div>
 
     <div class="tab-content" id="summary">
@@ -109,7 +105,8 @@
           <label for="defaultDuration">Default task duration (minutes):</label>
           <input type="number" id="defaultDuration" value="30" min="15" max="480" step="15">
         </div>
-        <p class="info-text" style="font-size: 12px; opacity: 0.8;">Tasks will be added to Google Tasks and time-blocked in Google Calendar based on estimated duration.</p>
+        <p class="info-text" style="font-size: 12px; opacity: 0.8;">Tasks will be added to Google Tasks and time-blocked
+          in Google Calendar based on estimated duration.</p>
       </section>
 
       <section class="section">
@@ -134,4 +131,5 @@
 
   <script src="popup.js" type="module"></script>
 </body>
+
 </html>

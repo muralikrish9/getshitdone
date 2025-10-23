@@ -5,7 +5,7 @@
 }
 
 body {
-  width: 400px;
+  width: 500px;
   min-height: 500px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   background: #f5f5f5;
@@ -113,8 +113,10 @@ header h1 {
 }
 
 .task-list {
-  max-height: 200px;
+  max-height: 400px;
   overflow-y: auto;
+  overflow-x: hidden;
+  /* fit content within popup without horizontal scroll */
 }
 
 /* Task Status Navigation */
@@ -183,7 +185,10 @@ header h1 {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 16px;
+  padding: 12px 14px;
+  min-width: 0;
+  /* allow wrapping within container */
+  overflow: visible;
 }
 
 .task-status {
@@ -213,6 +218,8 @@ header h1 {
 .task-content {
   flex: 1;
   min-width: 0;
+  /* allow grid to shrink and wrap */
+  overflow: visible;
 }
 
 .task-title {
@@ -235,22 +242,25 @@ header h1 {
 
 .task-meta {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  gap: 8px 10px;
   font-size: 12px;
+  margin-top: 8px;
 }
 
 .task-field {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  gap: 4px;
   color: #666;
+  min-width: 0;
 }
 
 .task-field label {
   font-weight: 500;
-  min-width: 60px;
+  font-size: 11px;
   color: #555;
+  white-space: nowrap;
 }
 
 .task-priority,
@@ -259,10 +269,29 @@ header h1 {
 .task-deadline {
   border: 1px solid #e0e0e0;
   border-radius: 4px;
-  padding: 4px 6px;
+  padding: 6px 8px;
   font-size: 12px;
   transition: all 0.2s;
   background: white;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Compact field widths to reduce crowding */
+.task-priority {
+  max-width: 150px;
+}
+
+.task-duration {
+  max-width: 100px;
+}
+
+.task-project {
+  max-width: 220px;
+}
+
+.task-deadline {
+  max-width: 180px;
 }
 
 .task-priority:focus,
@@ -277,9 +306,11 @@ header h1 {
 .task-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  opacity: 0;
+  gap: 6px;
+  opacity: 1;
   transition: opacity 0.2s;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .task-item:hover .task-actions {
@@ -287,12 +318,12 @@ header h1 {
 }
 
 .task-delete {
-  background: none;
-  border: none;
+  background: #fff9f9;
+  border: 1px solid #ffd3d7;
   cursor: pointer;
-  font-size: 16px;
-  padding: 4px;
-  border-radius: 4px;
+  font-size: 14px;
+  padding: 4px 6px;
+  border-radius: 6px;
   transition: all 0.2s;
   color: #ff4757;
 }
@@ -343,6 +374,7 @@ header h1 {
     opacity: 0;
     transform: translateY(-20px) scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -354,6 +386,7 @@ header h1 {
     opacity: 1;
     transform: translateX(0) scale(1);
   }
+
   to {
     opacity: 0;
     transform: translateX(-100%) scale(0.8);
@@ -369,9 +402,11 @@ header h1 {
   0% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(0.95);
   }
+
   100% {
     transform: scale(1);
   }
@@ -469,8 +504,13 @@ textarea:focus,
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .empty-state {
@@ -497,7 +537,9 @@ textarea:focus,
   resize: vertical;
 }
 
-.btn-primary, .btn-secondary, .btn-danger {
+.btn-primary,
+.btn-secondary,
+.btn-danger {
   padding: 10px 16px;
   border: none;
   border-radius: 6px;

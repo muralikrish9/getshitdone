@@ -37,7 +37,16 @@ export async function createTask(taskListId, taskTitle, taskNotes, dueDate = nul
     };
 
     if (dueDate) {
-      taskData.due = new Date(dueDate).toISOString();
+      try {
+        const date = new Date(dueDate);
+        if (!isNaN(date.getTime())) {
+          taskData.due = date.toISOString();
+        } else {
+          console.log('[Google Tasks] Invalid date format, skipping due date:', dueDate);
+        }
+      } catch (error) {
+        console.log('[Google Tasks] Date parsing error, skipping due date:', error);
+      }
     }
 
     console.log('[Google Tasks] Creating task:', taskTitle);

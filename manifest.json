@@ -7,7 +7,8 @@
     "storage",
     "activeTab",
     "scripting",
-    "identity"
+    "identity",
+    "contextMenus"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -18,8 +19,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -42,7 +47,7 @@
     "A9J4SbwLKpex6Lv6y8BoH/k0esDLtasrMYxSmTLydJtiU/oQcvuWHyz4FF9KLY04UJ6BXOyxDweYW/JMuT9QXwAAAACAeyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8vZmRlamNoaWtjcGhqY2tramtuYWVoZXBnbWdwaGlmamsiLCJmZWF0dXJlIjoiQUlXcml0ZXJBUEkiLCJleHBpcnkiOjE3Njk0NzIwMDAsImlzVGhpcmRQYXJ0eSI6dHJ1ZX0="
   ],
   "oauth2": {
-    "client_id": "YOUR_GOOGLE_OAUTH_CLIENT_ID_HERE",
+    "client_id": "919088017561-7s3d5vohbmovqctj3iq9fg4uiruiqktq.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/tasks",
       "https://www.googleapis.com/auth/calendar",

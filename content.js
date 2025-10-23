@@ -2,6 +2,56 @@ let highlightButton = null;
 let savedSelectedText = '';
 let savedContext = null;
 
+function extractGmailContent() {
+  try {
+    // Try multiple selectors for Gmail email content
+    const selectors = [
+      '[role="main"] [data-message-id]',
+      '.adn .ii.gt',
+      '.ii.gt',
+      '[data-message-id] .ii.gt',
+      '.email-body',
+      '.message-content'
+    ];
+
+    for (const selector of selectors) {
+      const emailElement = document.querySelector(selector);
+      if (emailElement) {
+        // Get text content and clean it up
+        let content = emailElement.textContent || emailElement.innerText || '';
+
+        // Clean up the content
+        content = content
+          .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+          .replace(/\n\s*\n/g, '\n') // Remove empty lines
+          .trim();
+
+        if (content.length > 50) { // Only return if we got substantial content
+          console.log('[Gmail] Extracted email content using selector:', selector);
+          return content;
+        }
+      }
+    }
+
+    // Fallback: try to get content from the main email area
+    const mainContent = document.querySelector('[role="main"]');
+    if (mainContent) {
+      let content = mainContent.textContent || mainContent.innerText || '';
+      content = content.replace(/\s+/g, ' ').trim();
+
+      if (content.length > 50) {
+        console.log('[Gmail] Extracted email content from main area');
+        return content;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[Gmail] Error extracting email content:', error);
+    return null;
+  }
+}
+
 function createHighlightButton() {
   const button = document.createElement('div');
   button.id = 'getshitdone-highlight-btn';
@@ -56,10 +106,26 @@ function handleCapture() {
     return;
   }
 
+  // Smart context expansion for Gmail
+  let fullEmailContext = null;
+  if (window.location.href.includes('mail.google.com') && selectedText.length < 200) {
+    try {
+      // Try to extract full email content from Gmail
+      const emailBody = extractGmailContent();
+      if (emailBody && emailBody.length > selectedText.length) {
+        fullEmailContext = emailBody;
+        console.log('[Content] ✓ Full email context extracted:', emailBody.length, 'chars');
+      }
+    } catch (error) {
+      console.log('[Content] Could not extract full email context:', error);
+    }
+  }
+
   const context = savedContext || {
     url: window.location.href,
     title: document.title,
     selectedText,
+    fullEmailContext,
     timestamp: new Date().toISOString()
   };
 
@@ -72,15 +138,15 @@ function handleCapture() {
       data: context
     }, (response) => {
       console.log('[Content] <<< Response received from background');
-      
+
       if (chrome.runtime.lastError) {
         console.error('[Content] ✗ Runtime error:', chrome.runtime.lastError);
         showNotification('Failed to capture task: ' + chrome.runtime.lastError.message, 'error');
         return;
       }
-      
+
       console.log('[Content] Response data:', response);
-      
+
       if (response && response.success) {
         console.log('[Content] ✓ Task captured successfully!');
         console.log('[Content] Saved task:', response.task);
@@ -93,7 +159,7 @@ function handleCapture() {
   } catch (error) {
     console.error('[Content] ✗ Extension context error:', error);
     showNotification('Extension needs to be reloaded. Please refresh the page.', 'error');
-    
+
     // Hide the button since we can't communicate with background
     hideHighlightButton();
     savedSelectedText = '';

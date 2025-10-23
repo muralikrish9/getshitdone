@@ -87,18 +87,39 @@ async function extractTaskFromText(text, context) {
     }
 
     console.log('[Task Extract] Using AI to extract task...');
-    const prompt = `Analyze the following highlighted text and extract a clear, actionable task.
+
+    // Smart context expansion: use full email context if available
+    let textToAnalyze = text;
+    if (context.fullEmailContext && context.fullEmailContext.length > text.length) {
+      console.log('[Task Extract] Using full email context for better task extraction');
+      textToAnalyze = `Selected text: "${text}"\n\nFull email context:\n"${context.fullEmailContext}"`;
+    }
+
+    // First, summarize the text to get a cleaner version
+    let summarizedText = textToAnalyze;
+    if (summarizerSession && textToAnalyze.length > 200) {
+      try {
+        console.log('[Task Extract] Summarizing text for cleaner extraction...');
+        summarizedText = await summarizerSession.summarize(textToAnalyze);
+        console.log('[Task Extract] ✓ Text summarized:', summarizedText.substring(0, 100) + '...');
+      } catch (error) {
+        console.log('[Task Extract] Summarization failed, using original text:', error);
+        summarizedText = textToAnalyze;
+      }
+    }
+
+    const prompt = `Analyze the following text and extract a clear, actionable task.
 
 Context:
 - Page: ${context.title}
 - URL: ${context.url}
 
-Highlighted text:
-"${text}"
+Text to analyze:
+"${summarizedText}"
 
 Extract the following in JSON format:
 {
-  "task": "Clear, actionable task description",
+  "task": "Clear, concise, actionable task description (max 50 words)",
   "priority": "high|medium|low",
   "estimatedDuration": number in minutes,
   "deadline": "inferred deadline or null",
@@ -106,7 +127,12 @@ Extract the following in JSON format:
   "tags": ["tag1", "tag2"]
 }
 
-Be concise and specific. If information is not explicit, make reasonable inferences.`;
+Requirements:
+- Task description should be concise and focused on the key action
+- Remove unnecessary context and verbose language
+- Make it scannable and actionable
+- If it's an email or long text, extract the core task/action item
+- Be specific about what needs to be done`;
 
     console.log('[Task Extract] Sending prompt to AI...');
     const response = await aiSession.prompt(prompt);
@@ -155,7 +181,27 @@ async function summarizeText(text) {
 
 function createFallbackTask(text, context) {
   console.log('[Fallback] Creating fallback task');
-  const summary = text.length > 100 ? text.substring(0, 100) + '...' : text;
+
+  // Create a more concise summary for fallback
+  let summary = text;
+  if (text.length > 80) {
+    // Try to find a good break point (sentence end, comma, etc.)
+    const breakPoints = ['. ', '! ', '? ', ', ', '; '];
+    let bestBreak = 80;
+
+    for (const breakPoint of breakPoints) {
+      const index = text.lastIndexOf(breakPoint, 80);
+      if (index > 40) {
+        bestBreak = index + breakPoint.length;
+        break;
+      }
+    }
+
+    summary = text.substring(0, bestBreak).trim();
+    if (summary.length < text.length) {
+      summary += '...';
+    }
+  }
 
   return {
     task: summary,
@@ -235,6 +281,7 @@ async function saveTask(taskData) {
       }
     } catch (error) {
       console.error('[Save Task] ✗ Google sync failed:', error);
+      // Don't fail the entire task save if Google sync fails
     }
   }
 
@@ -555,3 +602,51 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 // Initialize on service worker startup
 console.log('[Background] Service worker started, initializing AI...');
 initializeAI();
+
+// Create context menu for full page capture on install and startup
+try {
+  chrome.runtime.onInstalled.addListener(() => {
+    try {
+      chrome.contextMenus.create({
+        id: 'gsd_capture_full_page',
+        title: 'Capture task from page',
+        contexts: ['page']
+      });
+    } catch (e) { }
+  });
+
+  chrome.runtime.onStartup.addListener(() => {
+    try {
+      chrome.contextMenus.create({
+        id: 'gsd_capture_full_page',
+        title: 'Capture task from page',
+        contexts: ['page']
+      });
+    } catch (e) { }
+  });
+
+  chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (info.menuItemId !== 'gsd_capture_full_page' || !tab?.id) return;
+
+    try {
+      const [execution] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => ({
+          url: location.href,
+          title: document.title,
+          selectedText: (document.body && document.body.innerText) ? document.body.innerText.trim() : '',
+          fullEmailContext: null,
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      const page = execution?.result || { url: tab.url, title: tab.title || 'Page', selectedText: '', fullEmailContext: null, timestamp: new Date().toISOString() };
+      const extracted = await extractTaskFromText(page.selectedText || page.title, page);
+      const saved = await saveTask(extracted);
+
+      try { await chrome.tabs.sendMessage(tab.id, { action: 'taskCaptured', task: saved }); } catch (_) { }
+    } catch (error) {
+      console.error('[ContextMenu] Full page capture failed:', error);
+    }
+  });
+} catch (_) { }
