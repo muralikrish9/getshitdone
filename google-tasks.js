@@ -117,3 +117,32 @@ export async function syncTask(task) {
     throw error;
   }
 }
+
+export async function deleteTask(taskId) {
+  try {
+    const token = await getAuthToken(false);
+    
+    console.log('[Google Tasks] Deleting task:', taskId);
+    
+    const response = await fetch(
+      `${TASKS_API_BASE}/lists/@default/tasks/${taskId}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    console.log('[Google Tasks] ✓ Task deleted successfully');
+    return true;
+  } catch (error) {
+    console.error('[Google Tasks] ✗ Failed to delete task:', error);
+    throw error;
+  }
+}

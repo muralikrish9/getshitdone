@@ -99,3 +99,32 @@ export async function syncTaskToCalendar(task) {
     throw error;
   }
 }
+
+export async function deleteEvent(eventId) {
+  try {
+    const token = await getAuthToken(false);
+    
+    console.log('[Google Calendar] Deleting event:', eventId);
+    
+    const response = await fetch(
+      `${CALENDAR_API_BASE}/calendars/primary/events/${eventId}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    console.log('[Google Calendar] ✓ Event deleted successfully');
+    return true;
+  } catch (error) {
+    console.error('[Google Calendar] ✗ Failed to delete event:', error);
+    throw error;
+  }
+}

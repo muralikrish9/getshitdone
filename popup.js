@@ -261,6 +261,9 @@ async function deleteTask(taskId) {
   const result = await chrome.storage.local.get(['tasks']);
   const tasks = result.tasks || [];
   
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+  
   const taskItem = document.querySelector(`[data-task-id="${taskId}"]`);
   if (taskItem) {
     // Animate deletion
@@ -268,8 +271,23 @@ async function deleteTask(taskId) {
     taskItem.style.opacity = '0';
     
     setTimeout(async () => {
+      // Remove from local storage
       const updatedTasks = tasks.filter(t => t.id !== taskId);
       await chrome.storage.local.set({ tasks: updatedTasks });
+      
+      // Delete from Google services if synced
+      if (task.syncedToGoogle) {
+        try {
+          await chrome.runtime.sendMessage({
+            action: 'deleteFromGoogle',
+            data: { taskId: taskId, task: task }
+          });
+          console.log('[Delete] Task removed from Google services');
+        } catch (error) {
+          console.error('[Delete] Failed to remove from Google services:', error);
+        }
+      }
+      
       loadTasks();
     }, 300);
   }

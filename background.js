@@ -1,6 +1,6 @@
 import { getAuthToken, isSignedIn, revokeToken, getUserEmail } from './google-auth.js';
-import { syncTask as syncToGoogleTasks } from './google-tasks.js';
-import { syncTaskToCalendar } from './google-calendar.js';
+import { syncTask as syncToGoogleTasks, deleteTask as deleteFromGoogleTasks } from './google-tasks.js';
+import { syncTaskToCalendar, deleteEvent as deleteFromGoogleCalendar } from './google-calendar.js';
 
 let aiSession = null;
 let summarizerSession = null;
@@ -215,6 +215,13 @@ async function saveTask(taskData) {
         
         if (tasksSuccess && calendarSuccess) {
           task.syncedToGoogle = true;
+          // Store Google IDs for future deletion
+          if (results[0].value && results[0].value.id) {
+            task.googleTaskId = results[0].value.id;
+          }
+          if (results[1].value && results[1].value.id) {
+            task.googleEventId = results[1].value.id;
+          }
           const updatedTasks = tasks.map(t => t.id === task.id ? task : t);
           await chrome.storage.local.set({ tasks: updatedTasks });
           console.log('[Save Task] ✓ Task synced to Google Tasks and Calendar');
@@ -454,6 +461,55 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       } catch (error) {
         console.error('[Background] ✗ Failed to check Google auth:', error);
         sendResponse({ signedIn: false, email: null });
+      }
+    })();
+    return true;
+  }
+
+  if (message.action === 'deleteFromGoogle') {
+    console.log('[Background] >>> Starting deleteFromGoogle handler');
+    (async () => {
+      try {
+        const { taskId, task } = message.data;
+        console.log('[Background] Deleting task from Google services:', taskId);
+        
+        const signedIn = await isSignedIn();
+        if (!signedIn) {
+          console.log('[Background] User not signed in, skipping Google deletion');
+          sendResponse({ success: true, message: 'Not signed in to Google' });
+          return;
+        }
+
+        // Try to delete from Google Tasks and Calendar
+        // Note: We need to find the Google IDs from the task data
+        const results = await Promise.allSettled([
+          task.googleTaskId ? deleteFromGoogleTasks(task.googleTaskId) : Promise.resolve(true),
+          task.googleEventId ? deleteFromGoogleCalendar(task.googleEventId) : Promise.resolve(true)
+        ]);
+        
+        const tasksSuccess = results[0].status === 'fulfilled';
+        const calendarSuccess = results[1].status === 'fulfilled';
+        
+        if (!tasksSuccess) {
+          console.error('[Background] ✗ Google Tasks deletion failed:', results[0].reason);
+        }
+        if (!calendarSuccess) {
+          console.error('[Background] ✗ Google Calendar deletion failed:', results[1].reason);
+        }
+        
+        if (tasksSuccess && calendarSuccess) {
+          console.log('[Background] ✓ Task deleted from Google Tasks and Calendar');
+          sendResponse({ success: true, message: 'Deleted from Google services' });
+        } else if (tasksSuccess || calendarSuccess) {
+          console.log('[Background] ⚠ Partial deletion success (Tasks:', tasksSuccess, 'Calendar:', calendarSuccess, ')');
+          sendResponse({ success: true, message: 'Partially deleted from Google services' });
+        } else {
+          console.log('[Background] ✗ Google deletion failed completely');
+          sendResponse({ success: false, error: 'Failed to delete from Google services' });
+        }
+      } catch (error) {
+        console.error('[Background] ✗ Google deletion failed:', error);
+        sendResponse({ success: false, error: error.message });
       }
     })();
     return true;
